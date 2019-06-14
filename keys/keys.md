@@ -3,7 +3,7 @@
 <font color = red>红色表示以后用到再看：Linux命令行与shell脚本编程大全</font>：
 
 * `!`相关：
-  * `!$`是上一个命令的最后一个字符串，类似功能的有`esc + .`
+  * `!$`是上一个命令的最后一个字符串，类似功能的有`esc + .`——如果要在shell脚本中使用，可以考虑`"$_"`
   * `!!`是上一条指令。另外`^old^new`可以把上一条指令的old全替换为new
   * `!ls`是上一条ls指令，其他类推。在zsh支持下，只用敲tab
 * `du -sh`，`df -ih`
@@ -22,6 +22,8 @@
 * 编码转换： 
   - UNIX2dos/dos2UNIX -n(ew) k(eep)
   - iconv -f from -t to filename [-o newfile]
+* 技术：
+  * ``basepath=$(cd `dirname $0`; pwd)``获取当前目录
 
 
 

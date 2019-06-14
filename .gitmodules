@@ -1,0 +1,6 @@
+[submodule "project&codes/mandelbrot-viewer"]
+	path = project&codes/mandelbrot-viewer
+	url = https://github.com/agherzan/mandelbrot-viewer
+[submodule "project&codes/multi_try"]
+	path = project&codes/multi_try
+	url = https://github.com/JoshMcguigan/multi_try.git
