@@ -43,6 +43,23 @@
   }
   ```
 
+* [Windows 使用 bash](https://www.windowscentral.com/how-install-bash-shell-command-line-windows-10)。
+
+* centos需要在gitlab-runner下配置ssh。可以把root下配置好的，`cp /home/gitlab-runner && chown gitlab-runner: gitlab-runner ...`
+
+* 获取当前git信息
+
+  ```shell
+  echo "non_win set_up_variants..."
+  export BASE_DIR="$(pwd)"
+  export BUILD_DIR="${BASE_DIR}/sdk_build"
+  export SHARED_FILE_DIR="${BASE_DIR}/shared_files"
+  export PhotoDetectorOutput="${BASE_DIR}/OutputGit/libmtphotodetector"
+  export CURRENT_TAG="$(git tag -l --points-at HEAD)"
+  export CURRENT_MESSAGE="$(git log -1 --pretty=%B)"
+  export CURRENT_BRANCH="$(git branch --all --contains HEAD |  sed -E 's/(remotes\/origin\/)(.*)/\2/p' | uniq)"
+  ```
+
   
 
 
@@ -63,4 +80,5 @@
 # 其他
 
 * 在线化的xmind：www.processon.com
+* [cmake修改vs设置](https://my.oschina.net/u/221947/blog/413652)。
 
