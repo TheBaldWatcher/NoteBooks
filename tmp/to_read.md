@@ -3,7 +3,7 @@
   * https://www.zhihu.com/question/35887527
   * https://blog.slavv.com/37-reasons-why-your-neural-network-is-not-working-4020854bd607
   * https://karpathy.github.io/2019/04/25/recipe/
-* look free
+* lock free
   * http://ifeve.com/hazard-pointer/
   * https://www.cnblogs.com/gaochundong/p/lock_free_programming.html
   * https://www.youtube.com/watch?v=gpsz8sc6mNU

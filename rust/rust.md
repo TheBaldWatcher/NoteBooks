@@ -106,6 +106,7 @@
 * <font color=red>在 Mac 下面调优 TiKV</font>：[地址](https://www.jianshu.com/p/a80010878def)
 * <font color=red>Unsafe编写指导</font>：[地址](https://rust-lang.github.io/unsafe-code-guidelines/)。
 * parsing opt: https://github.com/TeXitoi/structopt。
+* <font color=red>从零开始写OS:</font> https://learningos.github.io/rcore_step_by_step_webdoc/
 
 
 
@@ -131,3 +132,9 @@
   * Failure处理失败
   * Serd序列化
   * slog输出日志
+
+
+
+# 资料
+
+* [深入浅出Rust异步编程之Tokio](https://mp.weixin.qq.com/s/FzJAV8Ah8DqDeNSee9WnPA)
