@@ -200,4 +200,44 @@
       
       ```
 
-    * 
+
+
+
+
+
+
+
+# 刷题进度
+
+* [math](https://leetcode.com/tag/math/): 69
+* [linked-list](https://leetcode.com/tag/linked-list/):92
+* [tree](https://leetcode.com/tag/tree/): 98
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+* 工资：
+  * 福利：住房补贴、食堂、周末加班（双薪？）
+  * 构成：现金、股票期权
+  * 上地6街

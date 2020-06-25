@@ -9,7 +9,11 @@
   * c++单元测试：https://github.com/boost-experimental/ut
   * 似乎是实现类似hana的一些功能：https://eliasdaler.github.io/meta-stuff/
   * https://abseil.io/tips/
-    * 多用string_view
+    * 尽量使用：
+      * string_view
+      * hex floating: 0x5'1p2
+      * delegated init: const Point p  {.x = 0x5'1p2};
+      * structured binding：for (const auto& [name, age] : ages_by_name)
     * private constructor的类可以考虑用工厂模式。#42
       * 如果涉及到make_unique/shared时，用new XXX的接口；或者用passkey idom。#134
     * 单元测试尽量不要fixture：尽量简单，且是free function。写.h前写下test可以看看api是否好用#122
@@ -20,6 +24,9 @@
     * delete也是函数定义，除了方法，也可以用于函数上；比如避免一些重载：void func(string);void func(char) = delete;或者是避免new[]。#143
     * 关联容器异构key查询：cmp中using is_transparent = ???。可直接用less<>。c++14支持ordered，c++20支持unordered#144。
     * 不要在return后去访问可能已经析构的变量。主要是指一些RAII的情况。#120
+    * absl:optinal用于small或者owned（如类成员和return value）。#163
+    * 尽量少用bind：bind(void func())给function<void(int)>用，编译器不报错，即：少参数也compile（使用bind_front）；另外void cb(function<void(int)> f)中f如果是bind的，可能和预期的调用不一样。#108
+    * copy elision: non-named也可能copy，如构造时是传给base、small-obj
   * gdb：https://www.kancloud.cn/wizardforcel/gdb-tips-100/146748
 * blog：
   * https://abcdabcd987.com/sharding/
@@ -67,9 +74,10 @@
       printf("NONE\n");
   }
   ```
-* strict aliasing：https://stackoverflow.com/tags/strict-aliasing/info
-
-
+* strict aliasing：
+  * https://stackoverflow.com/tags/strict-aliasing/info
+  * https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8
+    * 使用memcoy到临时变量，绕后靠编译器优化掉个临时变量。bit_cast在处理`sizeof(From)!=sizeof(To)`时也得这样。
 # Hana
 
 * 视频https://www.youtube.com/watch?v=L2SktfaJPuU&list=PLHTh1InhhwT7esTl1bRitiizeEnksGU7J&index=24
@@ -134,3 +142,8 @@ hana::eval_if;
 
 * 持久化内存：pmdk，https://pmem.io/book/#TOC
 
+
+
+刷题进度：
+all：310
+linked list：
