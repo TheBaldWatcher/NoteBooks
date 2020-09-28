@@ -388,6 +388,8 @@
 
   * > The basic idea behind linearizability is simple: to make a system appear as if there is only a single copy of the data.    ... and all operations on it are atomic.
 
+  * few system implementes linearizability bacause it's performance. In a network with highly variable delays, the response time of linearizable reads and writes is inevitably going to be high.
+
   * linearizability vs serializability:
 
     * serializability is for transaction: multi operations, multi objects, arbitrary total order
@@ -411,42 +413,138 @@
     * leaderless replication: **probably not** linearizability
       * strict qurom does not provide linearizability: some medium transaction state is exposed.(update Replica1, A read R1&R2, B read R2 & R3,update R2&R3)-- a **synch** read repair can fix read/write, but can't fix CAS operation(it need consensus)
       * LWW conflict resolution based on time-of-day may be not consistent with event ordering time
+    * `CAP` is misunderstanding and confusing, avoid use it.
 
-* linearizability： locking and leader selection. accout balance(single update-to-date value)
-  
-  * single-leader replication: potential linearizability
-  * multi-leader replica: not linear, leaderless: probably not
-  * CAP Therom: either Consistent or Available when (network) Partitioned : if there's a network problem, app(single-leader replica) requireing linearizablity becomes unavailable.
-  * linearizability is stronger than causality(totally order vs partial oder). So if we have liearizability, we have causalty. for single-leader, a increasing number can be used for linearizability.
-  * Lamport timestamps. {counter, node}, update to the max counter value.(totally order)-- but you need to know all operation when you make the decision.
-  * total order broadcast??：reliable delivery（no lost msg）， totally ordered delivery（msg divlcered to all node keep the same order）
-  
-* consensus(transaction on distributed database, total order broadcast)
-  * FLP: for a async system that can't use any clock or timeout, it's impossible to get consensus.-- we need to identify a node failure, a random number is even sufficient
-  * 2-PhaseCommit: prepare-commit, if a participant respond 'yes', it has to wait coordinate, even if coordinate fails. It has a performance penalty(for MySQL, 10x slower), due to disk forcing(for coordinate recovery) and network round-trips.
-  * heterogeneous distributed transaction: XA. many XA implementations have an emergency escape hatch called `heuristic decisions`, which violates the systen promises in 2-phase commit.(consider lock)
-  * 这一章没读太懂
+* Odering: linearizibility -> causally
+
+  * causally consistency(SSI provides this) is a partial order, linearizibility is total order(no concurrent).
+  * linearizibility provides causally consistency.
+  * you need to track of causal dependencies. But in fact it is impractical, and the transaction may only depend on some little subset of its reads.
+    * using sequence number ordering.An increasing number for all replica
+      * single-leader: transaction log may be used for generate this number(**potentially** but not always linearizability). The number is providing causal consistency by providing linearizability.
+      * multi-leader/leader-less: 
+        * Lamport timestamp: 
+          * (counter, node_id). every node track `max_counter`. when it realize there is a greater value, update `max_counter`.
+          * it is a little like version vector(distinguish concurrent&causally dependent), but Lamport  offers linearizability, and it's more compact but can't distinguishes concurrent. 
+          * but Lamport is not sufficient to solve many common problems in distributed systems:
+            *  you can decide the order only after all operations arrive(username). when a operation arrives, you may don't know whether there is another operation with a earlier timestamp, so it will insert and change the decided-order.---- total order broadcast is needed.
+        * total order broadcast <=> linearibility <=> consensus
+          * no message is lost & delivered to every node in the same order.
+          * it is similar to linearibility, as both indicate there's an order of operations. but broadcast does not garantee the time of msg delivery.
+          * implement a CAS op by total order broadcast: 
+            * append a msg to log; read untile the msg back to you, check the winner(first) of the msg, to decide to abort or successed.
+            * CAS is a write operation. For a read operation to be linearibility: it is similar to CAS, i.e. and a msg for read, in the log.  (or same other ways, skipped, read the book.)
+          * as linearibility is equivalent to each other, we can build total order broadcast by linearibility: 
+            * for every operation, increament-and-get a linearibility id
+            * it is different from Lamport timestamp: there's no gap, you have to wait id-5-msg to arrive before you send id-6-msg.
+
+* consensus
+
+  * FLP: there is no algorithm able to reach consensus if there is a risk that a node may crash.  it is proved in the **asynchronous** system model, which can not use clocks or timeout(a random number is even sufficient for indentifyinga node failure). So FLP does not mean it's impossible for distributed system to make consensus.
+  * 2-PhaseCommit: prepare-commit
+    * after coordinate decide to `commit/abort`, there's no way wo abort, you need to keep retrying until success.
+    * if a participant respond 'yes', it has to wait coordinate forever, even if coordinate fails. -- when waiting, the participant is *in dout*. and it may hold some **lock**, for 2-PL, this block both write and read.
+    * 2-PC has a performance penalty(for MySQL, 10x slower), due to disk forcing(for coordinate recovery) and network round-trips.
+    * heterogeneous distributed transaction: XA. many XA implementations have an emergency escape hatch called `heuristic decisions`, which may violate *atomicity*. It allows participant to decide to commit or abort unilaterally. This is for emergency, because when coordinate recovers, there may be some *orphaned* in-doubt transaction(due to log lost, corruption, software bug), and need manually resolved.
+  * limitation of distributed transaction
+    * coordinate iteslt is a DB, but often implemented un-highly available. it's failure block the whole DB
+    * if coordinate is a part of the app, the app becomes stateful.
+    *  Since XA needs to be compatible with a wide range of data systems, it is necessarily a **lowest** common denominator(e.g. it cant detect deadlock, does not work with SSI)
+    *  distributed transaction fails when any participant fails, this is *amplifying failures*, which runs counter to our goal of building fault-tolerant systems.
   * limitation: 
     * consensus is kind of sync, so there is performance penality
     * require more node(3 nodes for tolerate 1 failure), but with linearizability, these failure nodes will be blocked.
     * consensus use timeout to decide weather a node is failed. so high network delay may cause more leader selection, and harm the performance.
+  * zookeeper: to handle small data that can be stored in memory, and change on scale of minutes or hours. and it offer some useful features.
 
-* batch processing
-  * map-reduce: break into blocks -> map -> sort -> reduce
-    * reduce side join: hot key: randomnly send hot key to several reducer, and the related imformation may need be replica to all these reducer.
-    * map-side join: not sort&reduce, the output is patitioned & sorted the same way with the large input.
-      * broadcast hash join: the small dataset is broadcast to all nodes
-      * partition hash join: both source is partitoned the same way.
-      * map-side merge join: both source is partitioned & sorted the same way
+### batch processing
+
+* map-reduce: break into blocks -> map -> sort -> reduce
+  * reduce side join & grouping: 
+    * sort-merge join/grouping: mapper(user, profile) -> sortted user/profile -> reduce
+    * hot key: 
+      * some nodes may process signifiantly more records. and M-P is unfinished until every node is finished.
+      * randomnly send hot key to several reducer, and the other related imformation may need be replica to all these reducer.
+      * or as Hive, specified hot-key explicitly, and then use a map-side join.
+    
+  * map-side join: no sort&reduce. Need some information about **size, partition, sorting**.
+    
+    * the output is patitioned & sorted the same way with the large input, whereas reduce-side join is by the join key.
+      
+    * broadcast hash join: the small dataset is broadcast to all nodes
+      * the small dataset is completely loaded into memory
+      * or stored by a read-only index on the local disk(the frequently used parts  will remain in the OS’s page cache)
+    
+    * partition hash join: both source is partitoned the same way, So mapper only to read one partition for every input
+    
+      * > If the inputs are generated by prior MapReduce jobs that already perform this grouping, then this can be a reasonable assumption to make
+    
+    * map-side merge join: both source is partitioned(partition hash join) & **sorted** the same way
+    
+      * a prior MapReduce job, it did **sorte** but didn't **merge**(maybe other task need the unmerged data). 
+  
 * stream processing
-  * log-based: consumers <= partitions, head-of-line blocking. For case that msg ordering matters.
-  * stream joins: stream-stream join(search id + click event), stream-table join(event + user profile),table-table join
-  * exactly once: distributed transactions(consensus among different part), idempotence
+  * message system
+    * what happens if producer send faster than consumer can process: drop, buffer, backpressure
+    * what happens if nodes crash of temporarily go offline: any msg lost?
+    *  the combination of load balancing with redelivery inevitably leads to messages being **reordered**
+  * log-based msg broker: DB -> stream
+    * combining the durable storage approach of DBs with the low-latency notification facilities of messaging
+    * short come
+      * consumers <= partitions
+      * head-of-line blocking
+    * case:
+      * high message throughput, where each message is fast to process, msg ordering matters
+  * ChangeDataCapture&EventSourcing: stream -> DB
+    * CDC: 
+      * impl: log-based broker. init-snapshot + log compaction 
+      * mutable DB, low level & app transparent, log compaction can discard previous events for the same key
+    * EventSourcing
+      * immutabe event, app level, need the full history of all events to reconstruct the final state
+    * immutabe 
+      * pro: 
+        * decouple DB&event-log about evolving, storing, 
+        * easier sync among derived systems. 
+        * concurrency control
+          * downside: read your own write: synch or distributed transaction.
+          * but it also simplifies some aspects of concurrency control. self-contained to avoid changing in several different places like multi-obj transaction. If the event log and the application state are partitioned in the same way,  then need no concurrency control for writes
+  * peocessing stream
+    * ComplexEvemtProcessing(query is saved, data is scaned)
+    * analytics
+    * maintaining *materialized views*
+  * event or process time
+    * event time(device) + event sent time(device) + server receive time(server)
+  
+* stream joins: 
+  
+  * stream-stream join:search id + click event
+  
+  * stream-table join:event + user profile table, the table maybe a DB with CDC(material view).
+  
+  * table-table join: Both input streams are database changelogs
+  
+  * time may matters(follow and the unfollow). as broker like Kakfa has no ordering between partitions, the join may be not reproducable.
+  
+    * > it is often addressed by using a unique identifier for a particular version of the joined record: for example, every time the tax rate changes, it is given a new identifier, and the invoice includes the identifier for the tax rate at the time of sale. This change makes the join deterministic, but has the consequence that log compaction is not possible, since all versions of the records in the table need to be retained.
+  
+  * faile ouver: exactly once
+  
+    * distributed transactions(consensus among different part)
+    * idempotence(Kafka offset)
+    * op-state also need to be checkpointed.
+  
 * final chapter
+  * Data Integration
+    * the first challenge is then to figure out the mapping between the software products and the **circumstances** in which they are a good fit.
+    * so you inevitably end up having to cobble together **several** different pieces of software
   * Data Integration
     * reasoning about source(sync)
   * Unbundling database
     * federated DB(unify reads), unbundled DB(unify writes)
+
+
+
+头条：模拟sliding win，stream &stream join
 
 
 # other

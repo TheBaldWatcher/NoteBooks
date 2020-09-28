@@ -1,6 +1,6 @@
 # 杂项
 
-* [快速求](https://en.wikipedia.org/wiki/Fast_inverse_square_root)。$\frac {1}{\sqrt{x}}$。
+* [快速求](https://en.wikipedia.org/wiki/Fast_inverse_square_root)。 $\frac {1}{\sqrt{x}}$。
 
 * 二分搜索
 
@@ -37,14 +37,11 @@
 
 # String
 
-* KMP, sunday
+* KMP, [Shortest Palindrome](https://leetcode.com/problems/shortest-palindrome/submissions/)
 
   ```rust
   pub fn shortest_palindrome(s: String) -> String {
           fn get_prefix_table(s: &[u8]) -> Vec<usize> {
-              // the values in table is 1-based index, in order to use `size_t`
-              // so `1` correspond to `s[0]`.
-              // Or, `l` correspond to `s[l-1]`, vice versa `s[l]` correspond to `l+1`
               let mut table = vec![0; s.len()];
               let mut left = 0;
               for i in 1..s.len() {
@@ -66,7 +63,7 @@
     		// do something
   }
   ```
-
+  
   
 
 
@@ -200,9 +197,21 @@
       
       ```
 
+# DP
 
+* 四边形不等式：
 
+  * $$
+    dp[i,j] = min_{k=i}^{j-1}(dp[i, k]+dp[k+1,j]) + cost[i,j]
+    $$
 
+  * 如果cost[i,j]满足关于区间的单调关系对于a<=b<=c<=d, cost[b,c] <= cost[a,d]
+
+  * 且cost满足四边形不等式：交叉小于包含，即a<=b<=c<=d, cost[a,c] + cost[b,d] <=cost[a,d] + cost [b,c]
+
+  * 则dp满足四边形不等式，且最优决策点s[i, j-1] <= s[i,j] <= s[i+1,j]，即某一端点移动后，决策点不会左移
+
+  * 复杂度：按len = j-i来枚举，每次枚举s[i,j]只会右移且最多到n，故复杂度为N^2.
 
 
 
@@ -212,32 +221,3 @@
 * [math](https://leetcode.com/tag/math/): 69
 * [linked-list](https://leetcode.com/tag/linked-list/):92
 * [tree](https://leetcode.com/tag/tree/): 98
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-* 工资：
-  * 福利：住房补贴、食堂、周末加班（双薪？）
-  * 构成：现金、股票期权
-  * 上地6街

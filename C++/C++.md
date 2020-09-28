@@ -144,6 +144,123 @@ hana::eval_if;
 
 
 
+# Effective Mordern C++
+
+* Rvalue Reference, Move Sematics, and Perfect Forwarding
+  * move vs forward:
+    * move无条件cast，forward有条件cast。
+    
+    * forward可以做到move所有的工作。但二者区分对待也是有原因的：move更简单(一个参数)，forward多出来一个模板参数。另外，forward一般意味着把参数透传给下一函数，并保留其左/右值属性
+    
+    * 进一步来说：xvalue用move，glvalue（general ref）用forward。别对`const`使用`move`/`forward`，一方面意思相悖；另一方面实际上走的是l-ref的接口，而非预期的r-ref。
+    
+    * general ref(g-ref) template：
+    
+      * 避免维护两个版本非模板版本：`const T&`和`T&&`,随着参数增长，这个工作量是$2^n$倍的
+    
+      * 另外，维护两个非模板版本时，得写明参数类型。这可能导致多余的临时变量：
+    
+        ````c++
+        struct A {
+          template <typename T>
+          A(T&& t){ name = forward<T>(t);}
+          // don't do following 
+          // case: A("some string"): rval-constructor, move, rval-destructor
+          A(string const &t) { name = t;}
+          A(string &&t) { name = move(t);}
+          
+          string name;
+        };
+        ````
+    
+      * 。但也带来个问题：g-ref版本没有`const`限定了。这个时候forward就很重要了，不然，使用move也会影响l-ref的版本，导致参数非预期的被move。
+
+
+
+# 杂项
+
+* [value categories](https://stackoverflow.com/questions/3601602/what-are-rvalues-lvalues-xvalues-glvalues-and-prvalues):  i: indentifiable, I: unidentifiable, m: movable, M:unmovable
+  
+  * ```
+        ______ ______
+       /      X      \
+      /      / \      \
+     |   l  | x |  pr  |
+      \      \ /      /
+       \______X______/
+           gl    r
+           
+    ```
+  
+  * iM: lvalue, im: xvalue——i: glvalue, i.e. gl = l + x
+  
+  * Im: prvalue——m: rvalue, i.e. r = pr+x
+  
+* [execute policy](https://www.bfilipek.com/2018/11/parallel-alg-perf.html): heavy CPU& light I/O task
+
+* read/write lock: c++17有shared_lock。面试可能会问。参考实现[无锁](https://gist.github.com/mshockwave/b314eb78d4019e7e106e705e864e0398)；
+
+  * ```c++
+    //  https://blog.csdn.net/zxc024000/article/details/88814461
+    class RWLock {
+     public:
+     public:
+      RWLock(mutex &mtx) : mtx(&mtx);
+      void RLock() {
+        lock_guard<mutex> lck(mtx);
+        cv_read_.wait(lck, [&]() { return writers_ == 0; });
+        ++readers_;  // ++ after cv.wait, so new coming RLock won't block cur
+                     // waiting WLock
+      }
+    
+      void WLock() {
+        lock_guard<mutex> lck(mtx);
+        ++writers_;  // not like RLock, ++ is before cv.wait
+        cv_write.wait(lck, [&]() {
+          return readers_ == 0 &&  // until pre RLock all finish
+                 !is_writing_;     // win competing among other WLock
+        });
+        is_writing_ = true;
+      }
+    
+      void RUnlock() {
+        lock_guard<mutex> lck(mtx);
+        if (--readers_ == 0 && writers_ > 0) {
+          cv_writer.notify_all();
+        }
+      }
+    
+      void WUnlock() {
+        lock_guard<mutex> lck(mtx);
+        is_writing_ = false;
+        if (0 == --writers_) {
+          cv_readers.notify_all();
+        } else {
+          cv_writers.notify_one();
+        }
+      }
+    
+     private:
+      std::condition_variable cv_read_;
+      condition_variable cv_write_;
+      mutex *mtx = nullptr;
+      bool is_writing_ = 0;
+      int readers_ = 0;
+      int writers_ = 0;
+    };
+    ```
+
+  * 
+
+
+
 刷题进度：
-all：310
+all：
+
+* M：310
+* H：300
+
 linked list：
+
+
+
