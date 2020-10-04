@@ -94,6 +94,9 @@
 
 # dilworth/skyline
 
+* U的A划分的最少集合数==U的B链最大长度。——最少集合最大长度
+* longest increasing substring:
+  * lis中每个元素代表一条反链: 定义偏序关系:`i < j && nums[i] < nums[j]`。放入新元素时`i<j && nums[j] <= *lower_bound`形成反链。
 * [meeting room 2](https://leetcode.com/problems/meeting-rooms-ii/)
   * 很容易就能想到dilworth，然后转化为找相交区间的最大个数。比较tricky的是迭代的if判断。
 
@@ -221,3 +224,6 @@
 * [math](https://leetcode.com/tag/math/): 69
 * [linked-list](https://leetcode.com/tag/linked-list/):92
 * [tree](https://leetcode.com/tag/tree/): 98
+* all
+  * M：400
+  * H：400

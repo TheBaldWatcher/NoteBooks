@@ -1,5 +1,9 @@
-﻿cppcon视频：https://www.youtube.com/user/CppCon/playlists?reload=9
+﻿
 
+cppcon视频：https://www.youtube.com/user/CppCon/playlists?reload=9
+
+* c++ blog:
+  * [链接](https://brevzin.github.io/posts-by-tags/#c++20)。从c++20 `<=>`进来，感觉写的还不错，其他还没看。
 * 一些待看视频：
   * https://www.youtube.com/watch?v=WjTrfoiB0MQ
   * https://www.youtube.com/watch?v=kIoZDUd5DKw
@@ -198,6 +202,24 @@ hana::eval_if;
   
 * [execute policy](https://www.bfilipek.com/2018/11/parallel-alg-perf.html): heavy CPU& light I/O task
 
+* hash:
+
+  * `hash<T>`:
+    * [A good hash function should](https://stackoverflow.com/questions/664014/what-integer-hash-function-are-good-that-accepts-an-integer-hash-key/57556517#57556517):
+      * be bijective to not loose information, if possible and have the least collisions
+        * impl时会做乘法，由于要双射，即要求逆元，所以要乘奇数（`a mod N有乘法逆元<=> gcd(a,N) == 1`）。
+      * cascade as much and as evenly as possible, i.e. each input bit should flip every output bit with probability 0.5.
+    * [Mixer](http://zimbry.blogspot.com/2011/09/better-bit-mixing-improving-on.html)。
+  * `hash<pair<T,U>>`:
+    * `return seed ^= hasher(v) + Const_A+ (seed<<6) + (seed>>2);  `——boost::hash_combine.
+      * `Const_A`:$let phi  = (1 + sqrt(5)) / 2; 2^32 / phi = 0x9e3779b9 (for 32-bit)$。[链接](https://stackoverflow.com/questions/4948780/magic-number-in-boosthash-combine)。其每一位都等可能性的为0|1。
+      * [这里](https://stackoverflow.com/questions/35985960/c-why-is-boosthash-combine-the-best-way-to-combine-hash-values)似乎有一个更好的实现，但目前没工夫深究。
+    * `hash<pair<T,U>> = hash<T> ^ hash<U>`这种实现存在问题
+      * `hash<T>`如果本身分布不好，对某一值(如A)有倾向性，则`A ^ A -> 0`容易得到0值。
+        * 假设分布为：对值A有$k/n$几率，对其他值有$1/n$几率。则hash为0的几率为$k^2/n^2 + \sum_{n-k}1/n^2=(n-k+k^2)/n^2$。
+        * 因此我们本身要加一些噪音，即`Const_A`
+      * 对称性：`hash(a,b)==hash(b,a)`，因此要有非对称的`<<`和`>>`。
+
 * read/write lock: c++17有shared_lock。面试可能会问。参考实现[无锁](https://gist.github.com/mshockwave/b314eb78d4019e7e106e705e864e0398)；
 
   * ```c++
@@ -254,13 +276,27 @@ hana::eval_if;
 
 
 
-刷题进度：
-all：
 
-* M：310
-* H：300
 
-linked list：
+
+
+to_check details later:
+
+* c++20: `<=>`(mingw似乎还没支持)，中文参考[1](https://zhuanlan.zhihu.com/p/101004501?utm_source=com.evernote),[2](https://blog.csdn.net/longji/article/details/104017451),[3](https://www.cnblogs.com/ysherlock/p/9629599.html)；
+  * 外文[参考](https://brevzin.github.io/c++/2019/07/28/comparisons-cpp20/):
+    * 之前：`<,>,==,<=,>=,!=`虽然逻辑上相关，但代码上相互独立。一般来说，我们需要由`<,==`作为基础，实现其他4个。但：
+      * `a<=b`对partial order和total order有坑：total order可以写`!(b<a)`，但partial order不可以（考虑float和NaN），得写成`a==b || a<b`，这变成了两次函数调用。
+      
+      * 此外：对于heterogeneous comparison，得写一个friend的non-member版本`operator<(X,int)`，而且还得小心implicit conversion: Y->X。
+      
+      * |                           | Equality | Ordering             |
+        | ------------------------- | -------- | -------------------- |
+        | **Primary**（reversible)  | `==`     | `<=>`                |
+        | **Secondary**(rewritable) | `!=`     | `<`, `>`, `<=`, `>=` |
+      
+        
+
+
 
 
 
