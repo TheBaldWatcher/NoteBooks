@@ -554,14 +554,6 @@
     * g(x) = mex{x_follow}; g(x) = {g(x_subset1) ^ g(x_subset2)}
 
 
-# Linux 多线程服务端编程：使用 muduo C++ 网络库
-  * 线程安全的对象生命期管理
-    * mutex无法保护析构函数——析构函数会把mutex销毁掉，此时线程不安全
-    * observor模式下，`obj->update`需要保证不会有线程在析构。使用`weak_ptr.lock`来保证。(不直接用`shared_ptr`是为了方便自动析构#1.10)
-    * `shared_ptr`读是线程安全的，写不是（析构算作写）。有读/写操作时，需要加锁。
-    * 加锁后的`shared_ptr`在临界区中，尽量用`swap`避免触发析构。
-
-
 
 
 

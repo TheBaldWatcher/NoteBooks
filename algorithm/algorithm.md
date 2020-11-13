@@ -89,7 +89,13 @@
   hash_map[key_val.first] & key_val.second;	// test
   ```
 
+* [Number of 1 Bits](https://leetcode.com/problems/number-of-1-bits/):MIT HAKMEM。
 
+  * $$
+    n^k \% (n-1) == 1
+    $$
+
+  * 类似的有[ Add Digits](https://leetcode.com/problems/add-digits/)。
 
 
 # dilworth/skyline
@@ -216,6 +222,83 @@
 
   * 复杂度：按len = j-i来枚举，每次枚举s[i,j]只会右移且最多到n，故复杂度为N^2.
 
+# Graph
+
+* 《挑战》P110
+
+* Connected Component：
+
+  * 使用dfs（复杂），或者UnionFind（简单）
+  * 有向图中：Korasaju：以G^R^的拓扑序在G中dfs。对于s-v，拓扑序保证v→s，dfs保证s→v 
+
+* topology sort: 
+
+  * 逆后序(dfs结束时入栈)：可保证v->w时，dfs~w~ 在dfs~v~前结束
+  * chop online: 找到indgree为1的点，更新neighbour。会修改node的indgree。
+  * 优先级：如果两个任务之间有时间限制，如a在b完成后t时间内完成，则在a完成节点向b完成节点加一条负边-t。
+
+* cyclic: 有向图中，dfs，并用数组onStack表示在当前路径上（多路径，如树）；marked表示是否访问过（剪枝）；二者都为真则为环。
+
+* | Prim           | 加权有向图mst                  | 从堆中取出，判断是否是横切边，再判断是否要更新pq(insert或略过)。空间V时间ElogV |
+  | -------------- | ------------------------------ | ------------------------------------------------------------ |
+  | Kruskal        |                                | 空间E，时间ElogE。简单，可以字典序语义，需要并查集。         |
+  | Dijkstra       | 加权无向图最短路径（正边可环） | 从一点开始，遍历邻边，再判断是否是否要更新pq（insert或略过）。空间V时间ElogV |
+  |                | 无环优化                       | 拓扑序松弛。可有负边。空间V时间E+V                           |
+  | Bellman-Ford   | 可有负边的最短路径、负边检测   | 从一点开始，遍历邻边，再判断是否是否要更新q。空间V时间EV     |
+  | Floyd-warshall | 任一点最短路径，允许负边       | dp\[i, j]=min(dp[i, k] + dp[k, j])                           |
+
+```c++
+// Prim：加权有向图mst。堆pq、marked判断是否在mst中,依据为distTo
+// distTo存储节点路径长度（初始化INT_MAX）
+// edgeTo存储前驱节点(不用初始化)
+pq.insert(G, startNode);
+while(pq.empty()) visit(G,pq.pop());
+
+visit(vertex v){// using vertex = int
+  for (vertex w : v.adj)
+    if !marked[w] && weight(v,w) < distTo[w]
+      edgetTo[w] = v
+      distTo[w] = weight(v,w)
+      w是否在pq中? update(w, distTo[w]):insert(w, distTo[w])
+}
+//Korasaju，从所有边中，筛选端点不构成环(即不位于同一集合，使用并查集实现)
+while (!pq.empty && mst.size < V-1) {
+  edge e = pq.pop;
+  vertex v = e.either, w = e.other(v);// using vertex = int
+  if (uf.connectied()) continue;
+  uf.union(v,w);
+  mst.enque(e);
+}
+// Dijkstra
+pq.insert(G, startNode);
+while(pq.empty()) relax(G,pq.pop());
+
+relax(vertex v) {// using vertex = int
+  for (Edge e: v.adj) {
+    vertex w = e.to()
+    if distTo[w] > distTo[v] + e.weight 
+      distTo[w] = distTo[v] + e.weight
+      edgeTo[w] = e
+      w是否在pq中? update(w, distTo[w]):insert(w, distTo[w])
+      // 由于c++的pq实现无法支持update，所以可以选择直接insert
+      // 并在前面的while的pq.pop时，检查pop的p,
+      // 若distTo[p.first] < p.second则表明失效，丢弃
+  }
+}
+// Bellman-Ford
+while (true) {
+  bool update = false;
+  for (auto e:edges) {
+    if d[e.from]!= INF && d[e.to] > d[e.from] + e.cost {
+      d[e.to] = d[e.from] + e.cost;
+      update = true;
+    }
+  }
+  if (!update) break;
+}
+//tarjon
+```
+
 
 
 
@@ -225,5 +308,13 @@
 * [linked-list](https://leetcode.com/tag/linked-list/):92
 * [tree](https://leetcode.com/tag/tree/): 98
 * all
-  * M：400
-  * H：400
+  * easy：260
+  * Medium：540
+  * Hard：400
+
+
+$$
+O\!\left( \sqrt{\text{n_rows} \cdot \text{n_cols}}\, \right)
+$$
+
+
