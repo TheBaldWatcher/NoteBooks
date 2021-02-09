@@ -1,4 +1,8 @@
-﻿cppcon视频：https://www.youtube.com/user/CppCon/playlists?reload=9
+c++blog https://brevzin.github.io/c++/2019/07/28/comparisons-cpp20/
+
+
+
+cppcon视频：https://www.youtube.com/user/CppCon/playlists?reload=9
 
 * 一些待看视频：
   * https://www.youtube.com/watch?v=WjTrfoiB0MQ
@@ -10,10 +14,10 @@
   * 似乎是实现类似hana的一些功能：https://eliasdaler.github.io/meta-stuff/
   * https://abseil.io/tips/
     * 尽量使用：
-      * string_view
+      * ~~string_view~~
       * hex floating: 0x5'1p2
-      * delegated init: const Point p  {.x = 0x5'1p2};
-      * structured binding：for (const auto& [name, age] : ages_by_name)
+      * Designated init: const Point p  {.x = 0x5'1p2};
+      * ~~structured binding：for (const auto& [name, age] : ages_by_name)~~
     * private constructor的类可以考虑用工厂模式。#42
       * 如果涉及到make_unique/shared时，用new XXX的接口；或者用passkey idom。#134
     * 单元测试尽量不要fixture：尽量简单，且是free function。写.h前写下test可以看看api是否好用#122
@@ -250,7 +254,10 @@ hana::eval_if;
     };
     ```
 
-  * 
+
+
+
+* 
 
 
 

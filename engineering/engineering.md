@@ -60,7 +60,20 @@
   export CURRENT_BRANCH="$(git branch --all --contains HEAD |  sed -E 's/(remotes\/origin\/)(.*)/\2/p' | uniq)"
   ```
 
-  
+* git 获取 commit
+
+  * ~~~bash
+    # 1. 如何获取当前分支迁出来的分支的第一个commit:
+    git cherry -v master | sed 's/[ ]\+/ /g' | cut -d ' ' -f 2 | head -n 1
+    
+    # 2. 如何获取一个commit ID的父commit ID:
+    git log --pretty=%P -n 1  THE_COMMIT_ID
+    
+    # 3. 如何获取当前master的commit ID:
+    git log --pretty=%H -n 1 origin/master
+    ~~~
+
+  * 
 
 
 
@@ -76,6 +89,135 @@
 * [pod关掉部分架构](https://stackoverflow.com/questions/42645429/cocoapods-wrapping-around-a-static-library-without-i386-architecture)：`s.pod_target_xcconfig = { 'VALID_ARCHS' => 'arm64 armv7' }`。
 
 
+
+# Bazel
+
+* 查看依赖`xdot <(bazel query --notool_deps --noimplicit_deps "deps(//main:hello-world)" --output graph)`。
+* dependency
+  * bazel :[`local_repository`](http://docs.bazel.build/be/workspace.html#local_repository), [`git_repository`](https://docs.bazel.build/versions/master/repo/git.html#git_repository) or [`http_archive`](https://docs.bazel.build/versions/master/repo/http.html#http_archive)。
+  * Non-bazel: prefix`new_`。 e.g., [`new_local_repository`](http://docs.bazel.build/be/workspace.html#new_local_repository)。
+  * 获取依赖：`bazel build`自动获取。手动获取用`bazel fetch`(partly) 或`bazel sync`(all, update cache)。
+  * diamond依赖：在`WORKSPACE`中也声明两个版本，并在`local_repository` 中用`repo_mapping = {"@testrunner" : "@testrunner-v1"}`将依赖映射到不同名字中，以共存。
+  * [`--override_repository=foo=/path/to/local/foo`](https://docs.bazel.build/versions/master/command-line-reference.html#flag--override_repository)：覆盖依赖。可用于debug或mock。
+  * 跨project transitive: WORKSPACE:A->B:C，依赖项C需要在A中声明，即不会传递依赖。这会造成BUILD膨胀，但能规避一些版本冲突。
+  * layout:`ls $(bazel info output_base)/external`
+* rule
+  * 一个BUILD代表一个package，其中的元素为target
+  * Label: `@myrepo//my/app/main:app_binary` ，即project + package + target。
+    * 注意：label以`//`打头。因此`my/app`不是label，而是一个package
+    * 注意，如果要被external引用，不应略去本project的名称，因为`//a/b/c`会代表external下的路径。应使用`@//a/b/c`
+    * 简化：如果在同一project ->`@//my/app/main:app_binary` 
+    * 简化：如果target和package末尾相同：`//my/app:app` -> `//my/app`
+  * dependency: `src, deps, data`，其中data建议使用`data = glob(["testdata/**"]) `，而非label。`data = ["//data/regression:unittest/."] `只有文件夹增删时才会察觉到改变，修改其中文件则不会。
+  * Debug: `$ bazel query --output=build 'attr(generator_function, my_macro, //my/path:all)'`
+* remote execution
+  * 
+
+
+
+
+
+# 安全规范
+
+* 文件传输：
+
+  * 文件名重命名为16位+的随机字符串
+  * 敏感文件：加密、鉴权、水印
+
+* 外部输入：各种校验：数据长度、数据范围、数据类型与格式
+
+* 注意对环境的假定：命令注入、非法参数、路径劫持：
+
+  ```c++
+  // Bad 命令注入
+  std::string cmdline = "calc ";
+  cmdline += user_input;
+  system(cmdline.c_str());
+  
+  // bad
+  snprintf(buf, sizeof(buf), user_input);
+  // good
+  snprinf(buf, sizeof(buf), "%s", user_input);
+  
+  // 路径穿越
+  char name[20] = "../file.txt";
+  if (strstr(name, "..") != NULL){ return; }
+  
+  // 路径劫持
+  HINSTANCE hinst = ::LoadLibrary("dll_nolib.dll");
+  ```
+
+* rand函数前需正确初始化
+
+  ```c++
+  // Good
+  srand(time(0));	// caution, if not, rand() == rand(1)
+  int foo = rand();
+  ```
+
+
+
+# 测试
+
+* gmock
+
+  * > to do it "just right."  
+
+    * 不要把行为描述的太具体，也不要太模糊
+    * 所以`EXPECT_CALL`中用的是[matcher](https://github.com/google/googletest/blob/master/docs/gmock_cheat_sheet.md#matchers-matcherlist)，而不是具体是多少。——如果是non-overload，甚至可以直接省略
+
+  * `EXPECT_CALL`
+
+    * [逆序匹配](https://github.com/google/googletest/blob/master/docs/gmock_for_dummies.md#using-multiple-expectations-multiexpectations)。这样可以在开头放一个default版，后面覆盖一个特化版。
+    * `InSequence seq`可以[限定次序](https://github.com/google/googletest/blob/master/docs/gmock_for_dummies.md#ordered-vs-unordered-calls-orderedcalls)。
+
+  * [simpler interface](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#simplifying-the-interface-without-breaking-existing-code-simplerinterfaces): 用于接口参数较多、或者有多个重载时、在mock class的api中转发给MOCK_METHOD。这样只用mock少部分参数
+
+  * [delegating to fake/real](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#delegating-calls-to-a-fake-delegatingtofake)：对于一些方法，想用Fake/Real里的行为作为默认实现时：
+
+    * 在`ON_CALL, EXPECT_CALL`前，调用`ON_CALL().WillByDefualt([]{...})`。一直有效
+    * 或者在`EXPECT_CALL`里指定一下`WillOnce([]{...})`。只能有效一次
+
+  * [casting matchers](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#casting-matchers-safematchercast)：用来做类型转换，比如`int`->`long`, `base*`->`derived*`。
+
+  * [参数关系](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#matching-multiple-arguments-as-a-whole)。
+
+    * `foo(x, y, z)`中$x<y<z$。：`With(AllOf(Args<0,1>(Lt()), Args<1,2>(Lt())))`
+    * $0 <= x <= 100, and\ x \ne 50$。: `Matches(AllOf(Ge(0), Le(100), Ne(50)))`
+    * 字符串: `EXPECT_THAT(Foo(), StartsWith("Hello"));`
+    * 正则表达式: ` EXPECT_THAT(Bar(), MatchesRegex("Line \\d+"));`
+    * 自定义Pred的Matcher: `EXPECT_CALL(foo, Bar(Truly(My_Pred_Functor)));`
+    * 指针指向的参数: `EXPECT_CALL(foo, Bar(Pointee(Ge(3))));`
+
+  * [Matcher Container](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#matching-containers):
+
+    *  ` EXPECT_CALL(mock, Foo(UnorderedElementsAre(1, Gt(0), _, 5)));`
+
+* 接口测试：
+
+  * 基本流、备用流、异常流
+  * 用例精简——组合数学-正交实验
+  * trpc自动生成用例&验证
+    * `./trpc-cli -protofile=./comment.proto --interfacename=list -outputjson Danmu.json`
+    * `./trpc-cli -datafiles=testdata.json -tarfet=ip://9.141.2.204:11006`
+
+
+
+
+
+# 重构
+
+* 镶金玫瑰：多个item，多层if嵌套，且判断有交集
+  * 利用代码覆盖，简化多层if中不需要的if
+  * 将if改为switch
+  * 将case中的代码，改为多态对象的行为
+
+
+
+# 持续交付2.0
+
+* 聚焦业务，结果导向：持续交付2.0 + 精益创业（最小化可行产品用以验证）
+  * 少做：主要矛盾、快速剪枝（分解需求，快速尝试&反馈&决策，量化效果）
 
 # 其他
 
