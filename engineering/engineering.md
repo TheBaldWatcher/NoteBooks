@@ -159,39 +159,120 @@
 
 # 测试
 
-* gmock
+## gmock
 
-  * > to do it "just right."  
+* > to do it "just right."  
 
-    * 不要把行为描述的太具体，也不要太模糊
-    * 所以`EXPECT_CALL`中用的是[matcher](https://github.com/google/googletest/blob/master/docs/gmock_cheat_sheet.md#matchers-matcherlist)，而不是具体是多少。——如果是non-overload，甚至可以直接省略
+  * 不要把行为描述的太具体，也不要太模糊
+  * 所以`EXPECT_CALL`中用的是[matcher](https://github.com/google/googletest/blob/master/docs/gmock_cheat_sheet.md#matchers-matcherlist)，而不是具体是多少。——如果是non-overload，甚至可以直接省略
 
-  * `EXPECT_CALL`
+* `EXPECT_CALL`
 
-    * [逆序匹配](https://github.com/google/googletest/blob/master/docs/gmock_for_dummies.md#using-multiple-expectations-multiexpectations)。这样可以在开头放一个default版，后面覆盖一个特化版。
-    * `InSequence seq`可以[限定次序](https://github.com/google/googletest/blob/master/docs/gmock_for_dummies.md#ordered-vs-unordered-calls-orderedcalls)。
+  * [逆序匹配](https://github.com/google/googletest/blob/master/docs/gmock_for_dummies.md#using-multiple-expectations-multiexpectations)。这样可以在开头放一个default版，后面覆盖一个特化版。
+  * `InSequence seq`可以[限定次序](https://github.com/google/googletest/blob/master/docs/gmock_for_dummies.md#ordered-vs-unordered-calls-orderedcalls)。
+  * [Controlling When an Expectation Retires](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#controlling-when-an-expectation-retires): 逆序匹配和`InSequence`的对比。这里有个`RetiresOnSaturation`，不过我觉得最好不要用，不然逻辑弄得太复杂了。
 
-  * [simpler interface](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#simplifying-the-interface-without-breaking-existing-code-simplerinterfaces): 用于接口参数较多、或者有多个重载时、在mock class的api中转发给MOCK_METHOD。这样只用mock少部分参数
+* [simpler interface](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#simplifying-the-interface-without-breaking-existing-code-simplerinterfaces): 用于接口参数较多、或者有多个重载时、在mock class的api中转发给MOCK_METHOD。这样只用mock少部分参数
 
-  * [delegating to fake/real](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#delegating-calls-to-a-fake-delegatingtofake)：对于一些方法，想用Fake/Real里的行为作为默认实现时：
+* [delegating to fake/real](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#delegating-calls-to-a-fake-delegatingtofake)：对于一些方法，想用Fake/Real里的行为作为默认实现时：
 
-    * 在`ON_CALL, EXPECT_CALL`前，调用`ON_CALL().WillByDefualt([]{...})`。一直有效
-    * 或者在`EXPECT_CALL`里指定一下`WillOnce([]{...})`。只能有效一次
+  * 在`ON_CALL, EXPECT_CALL`前，调用`ON_CALL().WillByDefualt([]{...})`。一直有效
+  * 或者在`EXPECT_CALL`里指定一下`WillOnce([]{...})`。只能有效一次
 
-  * [casting matchers](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#casting-matchers-safematchercast)：用来做类型转换，比如`int`->`long`, `base*`->`derived*`。
+* [casting matchers](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#casting-matchers-safematchercast)：用来做类型转换，比如`int`->`long`, `base*`->`derived*`。
 
-  * [参数关系](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#matching-multiple-arguments-as-a-whole)。
+* [参数关系](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#matching-multiple-arguments-as-a-whole)。
 
-    * `foo(x, y, z)`中$x<y<z$。：`With(AllOf(Args<0,1>(Lt()), Args<1,2>(Lt())))`
-    * $0 <= x <= 100, and\ x \ne 50$。: `Matches(AllOf(Ge(0), Le(100), Ne(50)))`
-    * 字符串: `EXPECT_THAT(Foo(), StartsWith("Hello"));`
-    * 正则表达式: ` EXPECT_THAT(Bar(), MatchesRegex("Line \\d+"));`
-    * 自定义Pred的Matcher: `EXPECT_CALL(foo, Bar(Truly(My_Pred_Functor)));`
-    * 指针指向的参数: `EXPECT_CALL(foo, Bar(Pointee(Ge(3))));`
+  * `foo(x, y, z)`中$x<y<z$。：`With(AllOf(Args<0,1>(Lt()), Args<1,2>(Lt())))`
+  * $0 <= x <= 100, and\ x \ne 50$。: `Matches(AllOf(Ge(0), Le(100), Ne(50)))`
+  * 字符串: `EXPECT_THAT(Foo(), StartsWith("Hello"));`
+  * 正则表达式: ` EXPECT_THAT(Bar(), MatchesRegex("Line \\d+"));`
+  * 自定义Pred的Matcher: `EXPECT_CALL(foo, Bar(Truly(My_Pred_Functor)));`
+  * 指针指向的参数: `EXPECT_CALL(foo, Bar(Pointee(Ge(3))));`
 
-  * [Matcher Container](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#matching-containers):
+* [Matcher Container](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#matching-containers):
 
-    *  ` EXPECT_CALL(mock, Foo(UnorderedElementsAre(1, Gt(0), _, 5)));`
+  *  ` EXPECT_CALL(mock, Foo(UnorderedElementsAre(1, Gt(0), _, 5)));`
+
+  * ```c++
+    EXPECT_CALL(foo, SendValues)
+          .WillOnce(DoAll(SaveArg<1>(&actual_array), SaveArg<2>(&actual_proto)));
+    EXPECT_THAT(actual_array, ElementsAre(1, 4, 4, 7));
+    EXPECT_THAT(actual_proto, EqualsProto( ... ));
+    ```
+
+* [Ordered Call](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#expecting-ordered-calls-orderedcalls)
+
+  * `InSequence`-block, or `InSequence`method( DAG)
+
+    * [Changing a Mock Object's Behavior Based on the State](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#changing-a-mock-objects-behavior-based-on-the-state)
+
+    * [invoke without args](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#invoking-a-functionmethodfunctorlambdacallback-without-arguments):
+
+      * ```c++
+         // WithArgs
+         EXPECT_CALL(foo, ComplexJob(_))
+              .WillOnce([] { Job1(); });
+              .WillOnce(InvokeWithoutArgs(NewPermanentCallback(Job2, 5, 'a')));
+          
+          foo.ComplexJob(10);  // Invokes Job1().
+         foo.ComplexJob(20);  // Invokes Job2(5, 'a').
+      
+        // Unused: type A, type B, ... -> 一个 Unsed
+        double DistanceToOrigin(Unused, double x, double y) { ... }
+        EXPECT_CALL(mock, Foo("abc", _, _))
+            .WillOnce(Invoke(DistanceToOrigin));
+        ```
+    
+    * 
+
+* Action
+
+  * [return live value](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#returning-live-values-from-mock-methods)：`Return(x)`会在内部存一个x的copy，之后都使用这个copy；如果要使用live的x，要使用`ReturnPointee(x)`, 
+  * [Selecting an Action's Arguments ](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#selecting-an-actions-arguments-selectingargs): `EXPECT_CALL(mock, Foo).WillOnce(WithArgs<0, 2, 3>(Invoke(SomeFunc))); `
+
+* 杂项
+
+  * [Copy only](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#mocking-methods-that-use-move-only-types)
+
+    * `Return(ByMove(...))`
+    * 使用lambda或者functor
+
+  * [compile faster](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#making-the-compilation-faster)：compile耗时主要是在构造/析构上。 如果被多处使用时，这块可以优化：在`.cc`文件使用一个空的构造/析构函数，即避免implicit inline。
+
+  * [force verification](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#forcing-a-verification)
+
+    * mock析构时会检查所有的expectation。但存在不析构的情况（内存泄漏或者其他）。可以手动触发: `VerifyAndClearExpectations`
+
+  * [checkpoint](https://github.com/google/googletest/blob/master/docs/gmock_cook_book.md#using-check-points-usingcheckpoints)：到某个checkpoint点时希望处于某种状态
+
+    * 清除状态：比如构造完成后，清除构造时的expectation：`VerifyAndClearExpectations`或`VerifyAndClear`。后者还会清除`On_Call`
+
+    * 调用状态：`InSequence`。
+
+      ```c++
+      MockFunction<void(string check_point_name)> check;
+      {
+        InSequence s;
+      
+        EXPECT_CALL(mock, Bar("a"));		// ①
+        EXPECT_CALL(check, Call("1"));	// ②
+        EXPECT_CALL(check, Call("2"));	// ③
+        EXPECT_CALL(mock, Bar("a"));		// ④
+      }
+      Foo(1); 	
+      check.Call("1");  // 一定已经调用过①
+      Foo(2);
+      check.Call("2");	// 没有调用过④
+      Foo(3);
+      ```
+
+    * verbose: 
+
+      * 执行语句：` ::testing::FLAGS_gmock_verbose = "error";`
+      * 堆栈信息：`--gtest_stack_trace_depth=max_depth`
+
+
 
 * 接口测试：
 

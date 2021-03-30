@@ -183,7 +183,9 @@
         }
         ```
     
-      * cache line包含了过多的其他数据
+      * cache line包含了过多的其他数据——更多的cache miss
+    
+      * task switch——过多的thread导致单个core/core与core之间上，需要切换的cache过多
     
     * 数据结构：少、连续、分散：适当划分，减少元素访问，减少cache大小以减少thread切换开销；尽量连续，增加cache命中；分散以减少false sharing——矩阵乘法
     
