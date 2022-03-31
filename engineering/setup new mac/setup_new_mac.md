@@ -19,7 +19,6 @@
   
   
   
-  
 * trpc 
 
   * ```
@@ -30,4 +29,18 @@
 
   * 
 
-  * 
+
+
+
+
+
+## rust
+
+* https://www.jb51.net/article/191804.htm
+* vs插件
+  * rust-lang.rust
+  * bungcip.better-toml
+  * kalitaalexey.vscode-rust ——没找到
+  * tabnine.tabnine-vscode
+  * rust-analyzer
+

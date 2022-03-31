@@ -75,7 +75,13 @@
 
   * 
 
+# git
 
+* git log 
+  * `git log --no-mergs`
+  * <img src="./git log common option.png" alt="git log common option" style="zoom:50%;" />
+  * <img src="./git pretty format.png" style="zoom:50%;" />
+  * <img src="./git log-limit output.png" alt="git log-limit output" style="zoom:50%;" />
 
 # Android
 
@@ -93,6 +99,7 @@
 # Bazel
 
 * 查看依赖`xdot <(bazel query --notool_deps --noimplicit_deps "deps(//main:hello-world)" --output graph)`。
+  * dot -Tpng my_depdency -o my_dependency.png
 * dependency
   * bazel :[`local_repository`](http://docs.bazel.build/be/workspace.html#local_repository), [`git_repository`](https://docs.bazel.build/versions/master/repo/git.html#git_repository) or [`http_archive`](https://docs.bazel.build/versions/master/repo/http.html#http_archive)。
   * Non-bazel: prefix`new_`。 e.g., [`new_local_repository`](http://docs.bazel.build/be/workspace.html#new_local_repository)。
@@ -217,7 +224,7 @@
           
           foo.ComplexJob(10);  // Invokes Job1().
          foo.ComplexJob(20);  // Invokes Job2(5, 'a').
-      
+          
         // Unused: type A, type B, ... -> 一个 Unsed
         double DistanceToOrigin(Unused, double x, double y) { ... }
         EXPECT_CALL(mock, Foo("abc", _, _))
@@ -284,7 +291,9 @@
 
 
 
+# granfana
 
+* 
 
 # 重构
 
@@ -304,4 +313,14 @@
 
 * 在线化的xmind：www.processon.com
 * [cmake修改vs设置](https://my.oschina.net/u/221947/blog/413652)。
+
+# Shell
+
+* ```shell
+  ${#arr[@]}  # 数组arr的元素长度
+  ```
+
+* 
+
+
 

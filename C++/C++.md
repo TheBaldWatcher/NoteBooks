@@ -1,3 +1,36 @@
+# 读书
+
+* [on the fly](https://changkun.de/modern-cpp/en-us/02-usability/index.html)
+
+  * ` if constexpr `
+
+  * extern template
+
+    * 这个和`if constexpr`结合可以用来写variadic template，可一不用写终结递归的特化（）
+    * 
+
+  * Variable parameter template expansion——避免写一个终结递归用的特化
+
+    * `if constexpr` 来中止递归
+
+    * initialize_list + lambda: 
+
+      ```c++
+      template<typename T, typename... Ts>
+      auto printf3(T value, Ts... args) {
+          std::cout << value << std::endl;
+          (void) std::initializer_list<T>{([&args] {	// void is for unused-warning
+              std::cout << args << std::endl;
+          }(), value)...};
+      }
+      ```
+
+    * 对于简单情况，还有fold expression。`x + ... = x + y + z + ...`
+
+
+
+
+
 c++blog https://brevzin.github.io/c++/2019/07/28/comparisons-cpp20/
 
 
@@ -256,17 +289,37 @@ hana::eval_if;
 
 
 
-* 
+* [const T&&](https://www.codesynthesis.com/~boris/blog/2012/07/24/const-rvalue-references/): 由于`const T&`可以绑定lvalue和rvalue，在某些情况下需要区分二者。比如`template <class T> void ref (const T&&) = delete;`
+
+  * 不建议返回的临时变量为const: RVO不受影响（但是编译时还是会检查）；另外RVO失效时，会导致不能move，只能copy
+  * 另外函数不建议是const，比如函数链式调用时，内层函数const会导致外层可能被关掉move（原因同上）
+* [copy elision](https://en.cppreference.com/w/cpp/language/copy_elision): c++17
+
+  * c++17强制要求: return, initial 一个prvalue时，Mandatory
+
+    * 基类时不执行
 
 
 
-刷题进度：
+### 刷题进度：
+
 all：
 
-* M：310
+* M：340
 * H：300
 
 linked list：
+
+* trick
+
+  * ```
+    auto a = [](){
+        std::ios::sync_with_stdio(false);
+        std::cin.tie(nullptr);
+    }();
+    ```
+
+  * 
 
 
 
