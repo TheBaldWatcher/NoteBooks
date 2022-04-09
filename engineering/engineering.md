@@ -82,6 +82,17 @@
   * <img src="./git log common option.png" alt="git log common option" style="zoom:50%;" />
   * <img src="./git pretty format.png" style="zoom:50%;" />
   * <img src="./git log-limit output.png" alt="git log-limit output" style="zoom:50%;" />
+  * git config --global alias.last 'log -1 HEAD'
+* branch
+  * `gco [--track|banchYY] origin/branchXX`
+  * `git branch -u origin/serverfix`  设置upstream branch
+    * `git merge @{u}` shortcut for upstream branch
+  
+  * `git rebase --onto master server client`，将client从server基础上diverged的commit, rebase到master
+  
+* 书签
+  * **Git on the Server**
+  
 
 # Android
 
