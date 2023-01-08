@@ -91,11 +91,17 @@
 
 
 
+# Binary Indexed tree
+
+* 
+
 
 # dilworth/skyline
 
 * [meeting room 2](https://leetcode.com/problems/meeting-rooms-ii/)
   * 很容易就能想到dilworth，然后转化为找相交区间的最大个数。比较tricky的是迭代的if判断。
+* Q354. Russian doll  Envelopes
+* Q452. Minimum Number of Arrows to Burst Balloons
 
 
 

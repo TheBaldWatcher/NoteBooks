@@ -1,9 +1,11 @@
+## brpc
+
 * brpc参考：
 
   * $qps * latency \approx cores$: 使用同步；$>> cores$于则使用异步
   * bthread：1、无顺序要求；2、且不是并发rpc，而是并发计算&耗时>1ms。一般本线程实行最耗时的部分，以掩盖bthread切换的耗时
     * 不是coroutine：有work stealing和butex（bthread和pthread相互等待和唤醒）
-    * 多个bthread工作于一个pthread
+    * 多个btread工作于一个pthread
     * bthread里调用阻塞的pthread或系统函数，可能会影响rpc运行。规避办法
       * 加worker不一定管用：如果都在等待同一个资源
       * 区分io/worker线程：等于将rpc的阻塞转移到io/worker之间。但rpc可能在做无用功，没有意义。
@@ -20,7 +22,7 @@
       * 默认线程不安全；一般不共享所有权。且在rpc完成前，不能释放。
       * `ERPCTIMEDOUT`代表Rpc超时，不可重试；`ETIMEOUT`代表连接超时，可重试
     * 用BAIDU_REGISTER_ERRNO来注册error code，避免不同模块不一致
-  
+
 * basic
 
   * 使用pb3，并注意google规范
@@ -48,6 +50,28 @@
       GetProxy();
       
       trpc::coroutine::TrpcTaskExecuter exec;
+      ```
+
+    * 
+
+
+
+
+
+## Unix NetworkProgramming
+
+* Section 5
+
+  * signal
+
+    * ```c++
+      struct sigaction sig;
+      memset(&sig, 0, sizeof(struct sigaction));
+      
+      sig.sa_handler = SIG_IGN;
+      sig.sa_flags = 0; 
+      sigemptyset(&sig.sa_mask);  // 会被block住的其他signal
+      sigaction(SIGPIPE, &sig, NULL);
       ```
 
     * 

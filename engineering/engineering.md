@@ -1,3 +1,5 @@
+[toc]
+
 # gitlab
 
 * CI
@@ -73,8 +75,6 @@
     git log --pretty=%H -n 1 origin/master
     ~~~
 
-  * 
-
 # git
 
 * git log 
@@ -83,6 +83,7 @@
   * <img src="./git pretty format.png" style="zoom:50%;" />
   * <img src="./git log-limit output.png" alt="git log-limit output" style="zoom:50%;" />
   * git config --global alias.last 'log -1 HEAD'
+  
 * branch
   * `gco [--track|banchYY] origin/branchXX`
   * `git branch -u origin/serverfix`  设置upstream branch
@@ -90,8 +91,30 @@
   
   * `git rebase --onto master server client`，将client从server基础上diverged的commit, rebase到master
   
-* 书签
-  * **Git on the Server**
+* 多人合作distributed git
+  
+  * 建议使用`git format-patch`
+  
+  * 建议少用`git apply -i`（-i 表示交互模式），多使用`git am`
+  
+    * `git am --resolved`解决冲突。如果有patch的base commit，可以`git am -3`开启3-way maerge。
+  
+    * `git apply --check`可以查看结果
+  
+  * `git dif A...B`查看基于A、B公共commit的的B的diff。（3个点...而不是2个..）
+  
+  * `git config --global rerere.enabled true` 减少重复解决conflict的工作量
+  
+  * `git describe`显示最近tag到当前commit的信息。另外这个信息可用于check out
+  
+  * 归档：
+  
+    * ````shell
+      # archive
+      git archive master --prefix='project/' | gzip > `git describe master`.tar.gz
+      # log
+      git shortlog --no-merges master --not v1.0.1
+      ````
   
 
 # Android
@@ -109,8 +132,16 @@
 
 # Bazel
 
-* 查看依赖`xdot <(bazel query --notool_deps --noimplicit_deps "deps(//main:hello-world)" --output graph)`。
-  * dot -Tpng my_depdency -o my_dependency.png
+* 查看依赖
+  
+  * ````
+    sudo apt-get install graphviz
+    
+    xdot <(bazel query --notool_deps --noimplicit_deps "deps(:recommend_server_trpc)" --output graph)
+    
+    dot -Tpng my_depdency -o my_dependency.png
+    ````
+  
 * dependency
   * bazel :[`local_repository`](http://docs.bazel.build/be/workspace.html#local_repository), [`git_repository`](https://docs.bazel.build/versions/master/repo/git.html#git_repository) or [`http_archive`](https://docs.bazel.build/versions/master/repo/http.html#http_archive)。
   * Non-bazel: prefix`new_`。 e.g., [`new_local_repository`](http://docs.bazel.build/be/workspace.html#new_local_repository)。
@@ -119,6 +150,7 @@
   * [`--override_repository=foo=/path/to/local/foo`](https://docs.bazel.build/versions/master/command-line-reference.html#flag--override_repository)：覆盖依赖。可用于debug或mock。
   * 跨project transitive: WORKSPACE:A->B:C，依赖项C需要在A中声明，即不会传递依赖。这会造成BUILD膨胀，但能规避一些版本冲突。
   * layout:`ls $(bazel info output_base)/external`
+
 * rule
   * 一个BUILD代表一个package，其中的元素为target
   * Label: `@myrepo//my/app/main:app_binary` ，即project + package + target。
@@ -128,6 +160,7 @@
     * 简化：如果target和package末尾相同：`//my/app:app` -> `//my/app`
   * dependency: `src, deps, data`，其中data建议使用`data = glob(["testdata/**"]) `，而非label。`data = ["//data/regression:unittest/."] `只有文件夹增删时才会察觉到改变，修改其中文件则不会。
   * Debug: `$ bazel query --output=build 'attr(generator_function, my_macro, //my/path:all)'`
+
 * remote execution
   * 
 
@@ -331,7 +364,55 @@
   ${#arr[@]}  # 数组arr的元素长度
   ```
 
-* 
 
 
+# AddressSanitizer
+
+* [原理](https://www.usenix.org/system/files/conference/atc12/atc12-final39.pdf)
+  * shadow memory：用来标记byte可用性
+    * addr>> N + offset, N∈[1,8),
+      * Byte可用性表示在bit(以Byte为单位存储这些bit)中。一个Byte有8bit，所以N<8
+      * 表示2^N + 1个值：0~2^N个Byte是否可读。负数代表错误码
+    * $ShadowMemorySize = \frac{ApplicationMemorySize}{2^N}$
+    * $$ redzone >= 2^N$$  ，会存一些internal data：size, thread_id，malloc call stack之类的
+  * Run-time library
+    * malloc: 会分配额外内存，n regions对应n+1个 redzones
+    * free：先隔离，再释放，FIFO队列，固定长度
+  * 无法应对：
+    * 大部分都为**都为false neg**，即应报未报。没有false pos。
+      * 未对齐时的越界。比如从最后个Byte内中间的bite开始读——无很好的办法，被忽略
+      * out-of-bounds太远，以至于落到了合法内存上，而非redzone
+      * user-after-free：中间又有太多释放，导致隔离队列已被冲到
+    * [也有个false pos的例外](https://github.com/google/sanitizers/wiki/AddressSanitizerContainerOverflow#false-positives), 不过太少见了。[D_FORTIFY_SOURCE](https://github.com/google/sanitizers/wiki/AddressSanitizer)
+
+# ThreadSanitizer
+
+* [知乎](https://zhuanlan.zhihu.com/p/38687826)、[论文-待读](https://static.googleusercontent.com/media/research.google.com/zh-CN//pubs/archive/35604.pdf)。[git](https://github.com/google/sanitizers/wiki/ThreadSanitizerAlgorithm) ，
+  * 并行：充要条件：X、Y不可比，且$LS(X) \cap LS(Y) = \empty$
+  * SegmentSet: ${S_i}$, 其中元素均不可比（date race的备选集）
+  * TSan维护两个备选集：$SS_{write}, SS_{read}$
+    * $SS_{write}$: write这一内存的事件
+    * $SS_{read}$: 除read这一内存外，$\forall S_r \npreceq S_w$，即$S_w \prec S_r, or 不可比 $ 。
+    * 判断是否data race：
+  * 使用事项：
+    * 需要代码都按flag进行重编。即对库、std支持不好。会有false pos/neg问题。可考虑[这些flag](https://github.com/google/sanitizers/wiki/ThreadSanitizerCppManual#non-instrumented-code)。
+
+
+
+# DDD
+
+* 通过模型链接领域专家和开发人员。使用Ubiquitous Language
+* 图+文档结合来表达模型。以文档为主，因为文档可以补充细节。如果以图为主会导致图臃肿繁琐
+  * 图可以是模型的uml
+  * 也可以使解释性的非uml、非标准化的、更随意的一些图
+* 简单的项目不需要MDD+LayeredArchitecture，roi太低
+* 第二章
+  * 关联：简化：
+    * 规定一个遍历方向
+    * 添加限定符以减少多重关联
+    * 消除不必要的关联
+  * entity object：需用id进行标识和区分。这些id的构造可能需要领域知识
+  * value object：不需要用id进行区分（区分是不同的、或是相同的）
+  * service：若干操作的集合（这些操作不是entity obj或value obj的自然组成部分）
+  * Module: 注意不要分的太细，这样不够内聚。理解时需要串联多个module。
 

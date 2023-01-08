@@ -143,10 +143,36 @@ hana::eval_if;
 
 # 技巧
 
-* 返回多个值std::tie
-* 后缀返回auto func ()-> Type
 * -Wmissing-field-initializers: list_initialization在struct添加成员后，编译时不会报错。该选项可以检查这个
 * [不同std是可以link的，但不同gcc版本的lin有限制](https://stackoverflow.com/questions/46746878/is-it-safe-to-link-c17-c14-and-c11-objects)。
+
+
+
+## smart_ptr
+
+* [shared_ptr实现源码](https://www.cnblogs.com/ukernel/p/9191157.html)，面试前可以看下
+  
+  * 存在weak_ptr时，被管理对象T可能被释放，但管理对象M一直要等到weak_count也归零
+  * Make_shared只有一次堆内存分配，shared_ptr(new T)有两次
+  
+* const and &
+  
+  * ```c++
+    void sink(unique_ptr<T>);	// sink, consume
+    void reseat(unique_ptr<T>&); // will or might reseat
+    // void thinko(const unique_ptr<T>&) meaningless
+    
+    void share(shared_ptr<T>);	// share, will retain refcount
+    void reseat(shared_ptr<T>&);	// will or might reseat
+    void may_share(shared_ptr<T> const&);	// might retain refcount. -- the ptr and refcount is not const
+    ```
+  
+* don't deref non-local pointer. 如果是global的指针，可能在别处，甚至在当前函数中被释放掉，而此时我们接下来可能会使用这个dangling ref
+
+## auto
+
+* Correctness, maintainability, performanc(no implicit conversion), usability(hard to  write)——cppcon 2014, back to the basics
+* 不会写出未初始化变量
 
 
 
@@ -212,6 +238,240 @@ hana::eval_if;
       * 。但也带来个问题：g-ref版本没有`const`限定了。这个时候forward就很重要了，不然，使用move也会影响l-ref的版本，导致参数非预期的被move。
 
 
+
+# C++17
+
+* Evaluation order
+
+  * ```c++
+    std::string s = "I heard it even works if you don't believe"; s.replace(0,8,"").replace(s.find("even"),4,"always").replace(s.find("don't believe"),13,"use C++17");  // it always works if you use C++17
+    
+    int i = 0;
+    std::cout << ++i << ' ' << --i << '\n';	 // 1, 0
+    ```
+
+* Template Features
+
+  * ```c++
+    // Deduction Guide
+    template <typename T>
+    struct C {
+      C(const T&) {};
+    }
+    
+    C x{"hello"}; // T deduced as char[6], NOT DECAYED
+    template<typename T>C(T) -> C<T> // T deduced as const char*
+    
+    // Constexpr if
+    // case 1: perfect return of a generic value
+    template<typename Callable, typename... Args>
+    decltype(auto) call(Callable op, Args&&... args) {
+      if constexpr(std::is_void_v<std::invoke_result_t<Callable, Args...>>) { // return type is void:
+        op(std::forward<Args>(args)...);
+        return; 
+      } else { // return type is not void:
+        // 如果没有上一个分支, 这一行在函数返回类型为void时会报错
+        decltype(auto) ret{op(std::forward<Args>(args)...)};
+        return ret;
+      }
+    }
+    
+    // Fold Expression
+    // unary left fold: (... op args) -> (arg1 op arg2) op arg3
+    // unary right fold: (args op ...) -> arg1 op (arg2 op arg3)
+    // case1: 打印, 要加上空格
+    template<typename First, typename... Args>
+    void print(const First &first, const Args&... args) {
+      cout << first;
+      auto outWithSpace = [](const auto & arg){
+        cout << ' ' << arg;
+      };
+      (..., outWithSpace(args));
+      cout<<"\n";
+    }
+    // case2: 基类打印
+    template <typename... Bases>
+    class MultiBase : private Bases... {
+      public:
+        void print() {
+          (..., Bases::print());
+        }
+    };
+    // case3: Tree遍历
+    struct Node {
+      int val;
+      Node *left{nullptr}, *right{nullptr};
+      
+      template<typename T, typename ...TP>
+      static Node* traverse(T np, TP... pathes) {
+        return (np-> *... -> *pathes);  // np ->* paths1 ->* paths2 ...
+      }
+    };
+    Node* node = Node::traverse(root, Node::left, Node::right);
+    
+    // Template Parameters
+    // using auto for non-type template parameter
+    template <auto N> class S {};
+    S<42> s1;
+    S<'a'> s2;
+    // simplify code
+    template <typename T, T... Elements>
+    struct sequence {};
+    using indexes = sequence<int, 0, 3, 4>;
+    
+    template<auto... Elements> 
+    struct sequence_2 {};
+    using indexes_2 = sequence_2<0, 3, 4>;
+    
+    // Extended Using Declarations
+    // case1 simplify code
+    template<typename... Ts>
+    struct overload : Ts... {
+      using Ts::operator()...;
+    };
+    // why need this deduction guide? re-read the book
+    template<typename... Ts>
+    overload(Ts ...) -> overload<Ts...>;
+    
+    auto twice = overload {
+      [](string& s) {s += s;},
+      [](auto &v) {v *= 2;}
+    };
+    
+    ```
+  
+* New Libaray Components
+
+  * Optional
+  
+  * ```c++
+    // case 1: return values
+    // careful 1: accessing the value: `value()`， `operator *` is reference
+    for (int i : getVector().value()) {
+      cout << i<<"\n";  // oops, i is refered to deleted obj
+    }
+    // careful 2: value_or return by value
+    cout<< o.value_or("fall_back"); // nice interface, but maybe inefficient
+    cout<< o ? o->c_str() : "fallback";
+    // careful 3: nullopt is less than non-nullopt
+    optional<bool> bo;
+    bo < false ; // true
+    optional<size_t> so;
+    so < 0; // true
+    // careful 4: optional of boolean or pointer, so, use function `has_value`
+    optional<bool> ob{false};
+    if (!ob) {...} // !ob is false
+    if (ob == false) {} // ob == false is true
+    ```
+  
+  * variant
+  
+    * Motivation: union不知道持有的类型、不能有non-trivial、不能derive。可以搞个限定类型集合的polymorphism
+      * comparing variant polymorphism
+      * pro: 不需要基类及其接口(不过这个比较反直觉)、不需要virtual、不需要pointer(值语义，因此没有指针的一些问题，如freed memory, memory leak, no heap allocation)
+      * con: 限定类型（增删维护不方便）、按最大元素分配内存、copy可能会比较expensive
+  
+  
+    ```c++
+    // visit
+    // 方法1
+    auto generic_lambda = [](auto &val) {
+      if constexpr(is_convertible_v<decltype(val), string>) {val = val + val;} 
+      else { val *= 2;}
+    }
+    visit(generic_lambda, var);
+    // 方法2 参考template feature中的overload
+    auto twice = overload{
+      [](string&) {},
+      [](int i) {},
+    };
+    visit();
+    
+    // careful: string literal converts better to bool than string
+    variant<bool, string> v;
+    v = "hi"; // v.index is 0
+    ```
+  
+  * string_view
+  
+    ```c++
+    // careful 1: 不是\0结尾
+    // careful 2:  要保证被指向的string生命周期够长
+    // case 1: Do Not return string_view to strings
+    auto a = createPerson().getName(); // string_view getName() const { return name; }
+    // case 2: function templates should use return type AUTO
+    string operator+(string_view sv1, string_view sv2) {return string(sv1) + string(sv2);}
+    template<typename T>
+    T concat(const T& x, const T& y) {return x + y;}
+    string_view hi = "hi";
+    auto xy = concat(hi, hi); // T is deduced as string_view
+    
+    // Summary of safe use of string_view
+    // 1. Do not use string view in APIs that pass argument to a string
+    //   * Do not initialize string members for string_view parameters
+    //   * No string at the end of a string_view chain
+    // 2. Do not return a string view
+    // 3. function templates should NOT return generic type T
+    ```
+  
+  * std
+  
+    * parallel:
+      *  accumulate
+        * reduce: associative
+    
+      * Inner_product
+        * transform_reduce: non-associative比如平方求和。以便将元素变换、和求和操作分开
+    
+      * partial_sum
+        * inclusive_scan, exclusive_scan
+      
+    * string
+      
+      * boyer_moore_searcher，boyer_moore_horspool_searcher时间换空间
+    
+    * other utility function
+      
+      * as_const, clamp
+      * sample
+      
+    * containers
+      
+      * ```c++
+        // map, set可以改变key了.
+        auto nh = m.extract(2);
+        nh.key()=4;
+        m.insert(move(nh));
+        // merge
+        dst.merge(src);
+        
+        // emplace_back有返回值了
+        foo(myVector.emplace_back(...));
+        // try_emplace 在emplace失败时，不会move
+        m.try_emplace(42, std::move(t1));
+        // insert_or_assign和try_emplace相反，必定会move。
+        m.insert_or_assign(42, move(t1)); // 等价m[42] = move(t1), 但可以拿到iter，即少一次find。另外避免默认构造，然后赋值；是一步到位
+        ```
+      
+    * Multi-thread
+      
+      * ```C++
+        // 非精确值，hint
+        hardware_destructive_interference_size; // 不在一个cache line的最小size
+        hardware_destructive_interference_size; // 在一个cache line的最大的size
+        ```
+    
+  * 其他
+  
+    * ```c++
+      gcd();
+      lcm();
+      hpot(); // 计算二维、三维距离
+      ```
+    
+    * 
+    
+  
 
 # 杂项
 
@@ -300,26 +560,6 @@ hana::eval_if;
     * 基类时不执行
 
 
-
-### 刷题进度：
-
-all：
-
-* M：340
-* H：300
-
-linked list：
-
-* trick
-
-  * ```
-    auto a = [](){
-        std::ios::sync_with_stdio(false);
-        std::cin.tie(nullptr);
-    }();
-    ```
-
-  * 
 
 
 
