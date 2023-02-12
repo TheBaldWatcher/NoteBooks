@@ -171,8 +171,45 @@ hana::eval_if;
 
 ## auto
 
-* Correctness, maintainability, performanc(no implicit conversion), usability(hard to  write)——cppcon 2014, back to the basics
-* 不会写出未初始化变量
+* Correctness, maintainability, performanc, usability——cppcon 2014, back to the basics
+
+  * Correctness: 
+
+    * 左右两边不匹配，比如`vec::non_const_iter = const_vec.begin()` ——编译期
+
+      * ```c++
+        string s1 = "123\0\0aa";  // 123
+        auto s2 = "123\0\0aa"s;  // 123  aa
+        ```
+
+    * 不会写出未初始化变量——运行期
+
+  * Maintainability: 比如类型变更`int i = f()*42`，f的类型从int变为了float
+
+  * performance: no implicit conversion
+
+  * usability:hard to  write,比如迭代器
+
+* [gotw 94](https://herbsutter.com/2013/08/12/gotw-94-solution-aaa-style-almost-always-auto/)
+
+  * 会有些可读性上的问题。
+
+    * 但和收益相比是可接受的。另外`auto x = T{};`也是可以标明类型的
+
+    * 日常工作中我们也常常忽略具体类型——是面向接口编程思想的延伸：屏蔽type与data。
+
+      * ```c++
+        // 如下例子，一个类型也没有
+        template<class Container, class Value>
+        void append_unique( Container& c, const Value& v ) {
+            if( find(begin(c), end(c), v) == end(c) )
+                c.emplace_back(v); 
+            assert( !c.empty() );
+        }
+        ```
+
+      * 
+
 
 
 
@@ -493,6 +530,19 @@ hana::eval_if;
   * Im: prvalue——m: rvalue, i.e. r = pr+x
   
 * [execute policy](https://www.bfilipek.com/2018/11/parallel-alg-perf.html): heavy CPU& light I/O task
+
+* [别用rand](https://www.youtube.com/watch?v=LDPMpc-ENqY)。leetcode 384
+
+  * rand 范围小(32k)，长度短(执行一段时间之后出现重复)；另外大家喜欢`rand()% Val`，但这个分布不正确
+    * `rand()%10`的分布并不是均匀的，比如rand范围为0-12，会导致0~2的概率翻倍
+    * 更一般的，鸽巢原理，从理论上就不可能得到预期的分布，除非是`Rand_Max`的倍数
+
+  * `srand(time(nullptr))`中time的单位是秒，即1s内执行多次时，结果会相同
+  * `mt19937` 运行很快（构造比较慢），可复现+ 平台间一致
+  * `random_device`用于选个开始值，慢 + 无法复现+平台间不一致
+  * `uniform_int_distribution`，可复现+平台间不一致
+  * 不要用`random_shuffle`，使用`shuffle`
+  * URNG/distribution function op是non-const的，多线程不安全
 
 * read/write lock: c++17有shared_lock。面试可能会问。参考实现[无锁](https://gist.github.com/mshockwave/b314eb78d4019e7e106e705e864e0398)；
 

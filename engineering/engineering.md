@@ -1,5 +1,35 @@
 [toc]
 
+
+
+# gdb
+
+* set print elements 0
+
+* set print object on  ——派生类打印
+
+* set print pretty on
+
+* set scheduler-locking on|off|step
+
+* step count， util, n count
+
+* save breakpoints
+
+* save breakpoints
+
+* ```bash
+  # 构造一个对象
+  set $i=(SkillProxy *)malloc(sizeof(SkillProxy))
+  $i->SkillProxy::SkillProxy($3, 4574003295787813)
+  
+  # 打印static variable in function
+  $ nm -C a.out | grep test
+  (gdb) p 'Instance()::test'
+  ```
+
+* 
+
 # gitlab
 
 * CI
@@ -150,7 +180,19 @@
   * [`--override_repository=foo=/path/to/local/foo`](https://docs.bazel.build/versions/master/command-line-reference.html#flag--override_repository)：覆盖依赖。可用于debug或mock。
   * 跨project transitive: WORKSPACE:A->B:C，依赖项C需要在A中声明，即不会传递依赖。这会造成BUILD膨胀，但能规避一些版本冲突。
   * layout:`ls $(bazel info output_base)/external`
-
+  * 拿sha256
+  
+    * ```
+      http_archive(
+        name = "com_google_absl",
+        urls = ["https://github.com/abseil/abseil-cpp/archive/98eb410c93ad059f9bba1bf43f5bb916fc92a5ea.zip"],  # 2020-02-11T18:50:53Z
+        strip_prefix = "abseil-cpp-98eb410c93ad059f9bba1bf43f5bb916fc92a5ea",
+        sha256 = "aabf6c57e3834f8dc3873a927f37eaf69975d4b28117fc7427dfb1c661542a87",
+      )
+      ```
+  
+    * To get the `sha256` of this URL, run `curl -sL --output - https://github.com/abseil/abseil-cpp/archive/98eb410c93ad059f9bba1bf43f5bb916fc92a5ea.zip | sha256sum -`。
+  
 * rule
   * 一个BUILD代表一个package，其中的元素为target
   * Label: `@myrepo//my/app/main:app_binary` ，即project + package + target。
