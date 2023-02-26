@@ -72,6 +72,13 @@
     * LargeSegmentOffload(LSO)时，需要改为`tcp.seq < xxx`。此时分包会从cpu移交给网卡，比如：发方seq+len=0+2000，收放看到的是seq+len=0+1000, 1000+2000，此时按`tcp.seq==1000`查不到原始包
   * 清楚过滤，向上查找上一个服务端的包。并根据Seq+Len-Ack计算在途字节数。一般来说主要看client的（只回复ACK的话，在途字节数为0），即client发出的的Seq + len - sever发过来的ACK
   
-* 杂项
+* 一个劫持的例子
   
+  * 运营商复制请求，在正常请求前，返回一个假的地址
+  * ttl：3次握手在劫持前。可以根据握手的ttl去判断
+  * 网络层identification每次会递增一定值。劫持的会有大的跳变
+  * tcp层：劫持的看不到windows scale，会导致windows size特别大，切out of order
+  
+* 杂项
+
   * TTL：TimeToLive没经过一次路由就减少1，一般初始值为64

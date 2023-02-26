@@ -145,6 +145,8 @@ hana::eval_if;
 
 * -Wmissing-field-initializers: list_initialization在struct添加成员后，编译时不会报错。该选项可以检查这个
 * [不同std是可以link的，但不同gcc版本的lin有限制](https://stackoverflow.com/questions/46746878/is-it-safe-to-link-c17-c14-and-c11-objects)。
+* [unordered_set<function>](https://stackoverflow.com/questions/18039723/c-trying-to-get-function-address-from-a-stdfunction)。
+* `void_t`主要是作为模板里的dummy type。[理论上](https://stackoverflow.com/questions/31745818/why-is-void-t-necessary-to-check-for-the-existence-of-a-member-type)，也可以是int或者其他类型
 
 
 
@@ -159,11 +161,11 @@ hana::eval_if;
   
   * ```c++
     void sink(unique_ptr<T>);	// sink, consume
-    void reseat(unique_ptr<T>&); // will or might reseat
+    void reseat(unique_ptr<T>&); // will or might reseat, in-out parameter
     // void thinko(const unique_ptr<T>&) meaningless
     
     void share(shared_ptr<T>);	// share, will retain refcount
-    void reseat(shared_ptr<T>&);	// will or might reseat
+    void reseat(shared_ptr<T>&);	// will or might reseat, in-out parameter
     void may_share(shared_ptr<T> const&);	// might retain refcount. -- the ptr and refcount is not const
     ```
   

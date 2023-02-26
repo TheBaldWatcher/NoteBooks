@@ -92,6 +92,11 @@
       * moving cleanup from producer to consumer lets consumers touch only the head, producers touch only  the tail
     * reduce false sharing of different data on the same cache line, but adding alignment padding.
       * Separate variables that should be able to used concurrently by different threads should be far enough apart in memory
+  
+* [Walter E. Brown "Modern Template Metaprogramming: A Compendium, Part I"](https://www.youtube.com/watch?v=Am2is2QCvxY)
+
+  * 
+
 
 ## 2016
 
@@ -144,6 +149,7 @@
     * associativity: 结合律
     * Identity element: 有0元素
     * [Integer to Roman](https://leetcode.com/problems/integer-to-roman/) 。
+      * `optional<To, From> func(From)`
     
 
 * [Variadic expansion in examples](https://www.youtube.com/watch?v=Os5YLB5D2BU&list=PLHTh1InhhwT7J5jl4vAhO1WvGHUUFgUQH&index=47)
@@ -196,7 +202,7 @@
 
 ## 2017
 
-* [“C++ as a "Live at Head" Language”](https://www.youtube.com/watch?v=tISy7EJQPzI&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=2)
+* [“C++ as a "Live at Head" Language”](https://www.youtube.com/watch?v=tISy7EJQPzI&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=2)——SoftwareEngineeringAtGoogle有一章专门提了这个
   * Engineering is programming integrated over time（programming完成，engineerring维护）
   * engineering 和time强相关
     * vcs：可以回到某个历史
@@ -212,6 +218,99 @@
     * 别依赖一个函数的地址。也是类似的。签名可能会变，比如加个overload的版本
     * 还有类似的就是meta programming/introspection on type properites。比如emplace_back的返回类型在c++17中就变了。
     * 不要依赖ADL。比如通过`absl::string_view`查找到`absel::StrCat`，然后`absl::string_view`在c++17版本下会是`std::string_view`的别名。这时候`absel::StrCat`就找不到了。
+  
+* [Herb Sutter “Meta: Thoughts on generative C++”](https://www.youtube.com/watch?v=4AfRAVcThyA&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=3)
+  * 主要是如何让代码更简洁。以space operator切入，讲了一些想演进的语法
+  
+* [Matt Godbolt “What Has My Compiler Done for Me Lately? Unbolting the Compiler's Lid”](https://www.youtube.com/watch?v=bSkpMdDe4g4&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=5)
+  * 一些汇编
+  * compiler挺聪明的，O3太反直觉了
+  * 乘法可能会改成shift；手写的shift可能会被替换成乘法：`a*65599=(a<<16) + (a<<6) - a`, 约24:00
+  * 除法、取模也会做适当拆解成shift
+  * 甚至会识别你的意图：
+    * count二进制表示的1，直接替换成对应的指令
+    * 求和1+2+..+n甚至会直接用`n*(n+1)/2`进行替换
+  
+* [Walter E. Brown “Programming with C++ Constraints: Background, Utility, and Gotchas"](https://www.youtube.com/watch?v=n4ie7tPMXOQ&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=7)
+  * 以前：static_assert, enable_if, SFINAE
+    * 比如求幂：先写个一般迭代，再写个终结的特化（可以用enable_if写的好看些）
+  * c++17: constexpr if：不用再写SFINAE啦
+  * c++20: Concept
+  * 以swap为例——std要求T需要为movable type
+    * movable=copyable || has-move-ops
+  
+* [Stephen Dewhurst “Modern C++ Interfaces..."](https://www.youtube.com/watch?v=PFdWqa68LmA&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=13)
+  * 主要是怎么在模板编程里提供一个好的接口。通过trait去表达你的思想，你的各项要求、优化开关
+  * Is_transparent: 可以参考[这个](https://www.fluentcpp.com/2017/06/09/search-set-another-type-key/)例子。简单来说，我们声明这个函数是transparent的，可以接受和容器KeyType不同的参数。此时会有另一组函数重载被开启。count`, `lower_bound`, `upper_bound` and `equal_range等
+    * 后面的思想是，框架留好口子（SFINAE，`enable_if<T::SomeProperty>`）。我提供函数是，可以选择是否要使用这些口子，即定义`XXX::Someproperty`。——感觉就是type trait的一个形式
+  * 37:00提举了个例子，不同c++标准下的实现。c++17的fold expression非常简洁
+  * 24:18 当一个模板实例化后，其内部的模板函数可能发生非预期的匹配，因此要加上一些trait限制
+  
+    * ```c++
+      template <typename T>
+      class Heap {
+        Heap(size t, T const&v);
+        // range init. Heap<int>(5, 2)会命中这个构造函数, ooops
+        // 因此加上using xxx = typename iterator_traits<It> ...
+        // template<typename In, typename = IsIn<In>>
+        template<typename In>
+        Heap(In b, In e);
+      };
+      
+      template<typename T>
+      class X {
+        void operaotr(T const&);
+        void operaotr(T &&);
+        // operator(T&)会命中这个
+        // template <typename S, typename = NotSimilar<S,T>>
+        template <typename S>	
+        void operator(S&&);
+      };
+      ```
+  
+    * 
+  
+* [Ben Deane & Jason Turner “constexpr ALL the Things!”](https://www.youtube.com/watch?v=PJwd4JLYJJY&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=15)
+  * [constexpr_all_the_things](http://github.com/lefticus/constexpr_all_the_things.git)。函数式编程+constexpr json
+  
+  * ```c++
+    template <typename P, typename T, typename F>
+    constexpr pair<T, parse_input_t> accumulate_parse(parse_input_t s, P &&p, T init, F &&f) 
+    // Parser: optional<pair<To, From_remain>> parser(From);
+    // Func: To func(To, From_remain)
+    ```
+  
+  * [Don't constexpr All the Things - David Sankel [CppNow 2021]](https://www.youtube.com/watch?v=NNU6cbG96M4) 
+  
+    * constexpr的依赖是传递性的，需要所有调用链上的都满足。这会极大限制constexpr的使用。
+    * Core constant expressions(?) are too difficult to understand
+    * One function implemented in two languages is error prone (constexpr and non-constepxr)
+  
+* [Carl Cook “When a Microsecond Is an Eternity: High Performance Trading Systems in C++”](https://www.youtube.com/watch?v=NH1Tta7purM&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=20)——一些性能tips
+
+  * 配置化不一定需要特别多的虚函数，以多场景配置化举例：
+
+    * ```c++
+      // 3个虚函数表(XX_Base) vs 1个需函数表(ManagerBase)
+      struct Manager{
+        RecallBase *recall_;
+        RankingBase *ranking_;
+        RerankBase *rerank_;
+        void DoRecommend();
+      };
+      
+      template<typename Recall, typename Ranking, typename Rerank>
+      struct Manager: public ManagerBase{
+        Recall recall_;
+        Ranking ranking_;
+        Rerank rerank_;
+        void DoRecommend() final;
+      };
+      ```
+
+    * Don't be afaid to use exceptions(They are zero cost if they don't throw)
+
+
 
 ## 2022
 
@@ -219,4 +318,9 @@
   * language is just a part of developer's toolbox
   * All problems in computer science can be solved by another level of indirection, except for the problem of too many layers of indirection—— [Butler Lampson](https://en.wikipedia.org/wiki/Butler_Lampson)。https://en.wikipedia.org/wiki/Indirection
   * variant 比union好：express its intent
+  * error code vs exception
+    * error code
+      * a failure is normal and expected
+      * an immediate caller can reasonably be expected to handle the failure
+      * an error happens in one of a set of parallel tasks and we need to know which task failed
 * [Can C++ be 10x Simpler & Safer? ](https://www.youtube.com/watch?v=ELeZAKCN4tY)——cppfront
