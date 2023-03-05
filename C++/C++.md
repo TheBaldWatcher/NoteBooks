@@ -29,7 +29,7 @@
 
 
 
-
+https://www.codingninja.co.uk/best-programmers-quotes/
 
 c++blog https://brevzin.github.io/c++/2019/07/28/comparisons-cpp20/
 
@@ -280,6 +280,12 @@ hana::eval_if;
 
 # C++17
 
+* std::launder
+
+  * https://wanghenshui.github.io/2019/04/27/launder.html
+  
+  * https://stackoverflow.com/questions/39382501/what-is-the-purpose-of-stdlaunder
+  
 * Evaluation order
 
   * ```c++
@@ -378,11 +384,11 @@ hana::eval_if;
     };
     
     ```
-  
+
 * New Libaray Components
 
   * Optional
-  
+
   * ```c++
     // case 1: return values
     // careful 1: accessing the value: `value()`， `operator *` is reference
@@ -402,15 +408,15 @@ hana::eval_if;
     if (!ob) {...} // !ob is false
     if (ob == false) {} // ob == false is true
     ```
-  
+
   * variant
-  
+
     * Motivation: union不知道持有的类型、不能有non-trivial、不能derive。可以搞个限定类型集合的polymorphism
       * comparing variant polymorphism
       * pro: 不需要基类及其接口(不过这个比较反直觉)、不需要virtual、不需要pointer(值语义，因此没有指针的一些问题，如freed memory, memory leak, no heap allocation)
       * con: 限定类型（增删维护不方便）、按最大元素分配内存、copy可能会比较expensive
-  
-  
+
+
     ```c++
     // visit
     // 方法1
@@ -430,9 +436,9 @@ hana::eval_if;
     variant<bool, string> v;
     v = "hi"; // v.index is 0
     ```
-  
+
   * string_view
-  
+
     ```c++
     // careful 1: 不是\0结尾
     // careful 2:  要保证被指向的string生命周期够长
@@ -452,9 +458,9 @@ hana::eval_if;
     // 2. Do not return a string view
     // 3. function templates should NOT return generic type T
     ```
-  
+
   * std
-  
+
     * parallel:
       *  accumulate
         * reduce: associative
@@ -501,7 +507,7 @@ hana::eval_if;
         ```
     
   * 其他
-  
+
     * ```c++
       gcd();
       lcm();
@@ -510,7 +516,7 @@ hana::eval_if;
     
     * 
     
-  
+
 
 # 杂项
 

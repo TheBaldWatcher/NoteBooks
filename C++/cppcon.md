@@ -1,3 +1,5 @@
+
+
 ## 2014
 
 * make simple tasks simple!
@@ -278,8 +280,57 @@
     constexpr pair<T, parse_input_t> accumulate_parse(parse_input_t s, P &&p, T init, F &&f) 
     // Parser: optional<pair<To, From_remain>> parser(From);
     // Func: To func(To, From_remain)
+    
+    // 一个对数字的校验
+    using parse_input_t = std::string_view;
+    using parse_result_t = std::optional<std::pair<char, parse_input_t>>;
+    template <class InputIt, class T>
+    constexpr InputIt constexpr_find(InputIt first, InputIt last, const T &value) {
+      for (; first != last; ++first) {
+        if (*first == value) {
+          return first;
+        }
+      }
+      return last;
+    }
+    constexpr auto one_of(parse_input_t chars) {
+      return [=](parse_input_t s) -> parse_result_t {
+        if (s.empty()) return std::nullopt;
+        // basic_string_view::find is supposed to be constexpr, but no...
+        auto j = constexpr_find(chars.cbegin(), chars.cend(), s[0]);
+        if (j != chars.cend()) {
+          return parse_result_t(std::pair(s[0], parse_input_t(s.data() + 1, s.size() - 1)));
+        }
+        return std::nullopt;
+      };
+    }
+    template <typename P>
+    constexpr bool check_all(parse_input_t s, P &&p) {
+      while (!s.empty()) {
+        const auto r = p(s);
+        if (!r) return false;
+        s = r->second;
+      }
+      return true;
+    }
+    template <typename P>
+    constexpr auto all_satisfy(P &&p) {
+      return [p = std::forward<P>(p)](parse_input_t s) { return check_all(s, p); };
+    }
+    
+    using namespace std::literals;
+    template <typename T, T... Ts>
+    constexpr auto operator"" _check() {
+      const std::initializer_list<char> il{Ts...};
+      // 对配置做个字符的校验，确保是以下之一
+      constexpr auto parser = all_satisfy(one_of("01234567890,-|"sv));
+    
+      return parser(std::string_view(il.begin(), il.size()));
+    }
+    static_assert(R"(01234,566)"_check == true);
+    
     ```
-  
+    
   * [Don't constexpr All the Things - David Sankel [CppNow 2021]](https://www.youtube.com/watch?v=NNU6cbG96M4) 
   
     * constexpr的依赖是传递性的，需要所有调用链上的都满足。这会极大限制constexpr的使用。
@@ -309,6 +360,121 @@
       ```
 
     * Don't be afaid to use exceptions(They are zero cost if they don't throw)
+
+    * 对于latency，不建议使用multi-thread。如果要使用：
+
+      * 减小data、考虑copy而非sharing、或许乱序也是可以接受的？
+
+    * denormalized data：空间换时间，保证数据都在一个cache line中
+
+    * 31:00 对比unordered_map。相比拉链法，开放地址法对cache更友好
+
+    * 是否inline需要测试。if-else在inline后似乎无法进行分支预测的优化。强制是否inline应使用always_inlin和noinline
+
+    * 保证data/instruction cache hot：正常流程很少会走到发出订单，因此用一些dummy请求来强制走到最后一步，但不发订单
+
+    * 可以牺牲一些精度。
+
+      * 另外，pow有些时候[会很慢](https://entropymine.com/imageworsener/slowpow/)，主要是base接近1.0的时候：pow(≈1.0, 1.4), pow(≈1.0, 1.5)
+
+    * 如何测试耗时：搭建个测试链路，这个是最准的
+
+    * 其他
+
+      * inline语义逐渐发生变化：表示可以有多份定义 Because the meaning of the keyword inline for functions came to mean "multiple definitions are permitted" rather than "inlining is preferred", that meaning was extended to variables.
+
+* [P. McKenney, M. Michael & M. Wong “Is Parallel Programming still hard? PART 1 of 2”](youtube.com/watch?v=YM8Xy6oKVQg&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=22)
+
+  * triangle: productivity vs performance vs generality
+  * Work Partitioning: greatly ↑performance, ↓productivity (更多complexity导致更难理解和debug)
+  * ParallelAccessControl: ↓performance (比如：线程间同步的开销)
+  * ResourcePartitioningAndReplication: ↓generality。数据冗余：disks、NUMA、CPU、GPU、cache lines。这冗余的形式往往和具体的领域强相关
+  * InteractingWithHardware: ↓productivity，尤其是有portable要求时
+  * 影响cpu的一些因素
+  
+    * mispredicted branch
+    * memory reference？
+    * RMW atomic
+    * memory barrier, aka fence. memory ordering
+    * cache miss
+    * I/O operation
+    * ![image-20230228203815434](cppcon/image-20230228203815434.png)
+  * 一些优化及对应缺陷
+  
+    * big cacheline: 导致false sharing，解决办法是alignment
+    * prefetching: 在拿line1时，顺便把line2拿了。又回到了big cacheline
+    * store buffer: 将改动缓存起来，等cache来了再写进去。会导致mis-ordering
+  * 一个例子及其分析：SingleProducerSingleComsumer。减少cache line bouncing
+  
+    * ```c++
+      // lock使得其是串行的
+      // lock存在cache line bouncing
+      // lock的获取需要RMW或者fence
+      // handoff per second 4.3M
+      class SingleLock{
+        T* buffer_[M];
+        uint64_t head_{0};
+      	uint64_t tail_{0};
+        mutex lock_;
+        bool TryEnq(T*) {
+          lock_guard g{lock_};
+          ...
+        }
+        T* TryDeq() {
+          lock_guard g{lock_};
+          ...
+        }
+      };
+      
+      // atomic是并行的，开销比lock小
+      // 依然有cache line bouncing: head、tail被不用的线程读写
+      // handoff per second 29.4M
+      class Lamport1983{
+        T* buffer_[M];
+        atomic<uint64_t> head_{0}; // no lock, atomic instead of
+        atomic<uint64_t> tail_{0};
+        bool TryEnq(T*) {
+      		uint64_t t = tail_.load(mo_rlx);
+          if (head_.load(mo_acq) + M == t) ...;
+          tail_.store(t+1, mo_rel); ...;
+        }
+        T* TryDeq() {
+      		uint64_t h = head_.load(mo_rlx);
+          if (tail_.load(mo_acq) == h) ...;
+          head_.store(h+1, mo_rel); ...;
+        }
+      };
+      // 将buffer改为atomic后，TryEnq和TyeDeq减少了cache line bouncing的问题：
+      //   head_, tail_ 只会读其中的一个，不会两个都读
+      // handoff per second: without alignment 27.0M
+      // handoff per second: 58.8M
+      class Giacomoni2008{
+        atomic<T*> buffer_[M]; // this is atomic, and head,tail is not
+        ALIGN_TO_AVOID_FALSE_SHARING size_t head_{0};
+        ALIGN_TO_AVOID_FALSE_SHARING size_t tail_{0};
+        bool TryEnq(T*) {
+      		if (buffer_[tail_].load(mo_acq)) {return false;}
+          buffer_[tail_].store(p,mo_real);
+          tail_ = NEXT(t_); return true;
+        }
+        T* TryDeq() {
+      		T *p = buffer_[head_].load(mo_acq);
+          if (!p) return nullptr;
+          buffer_[head_].store(nullptr, mo_rel);
+          head_ = NEXT(head_); return p;
+        }
+      };
+      
+      // Blocking版本：使用condition variable
+      // 对于使用condition variable的版本，性能偏差。其中一个可优化的细节是
+      // 使用3个状态的Stat: Full, Empty, Blocked，只有Blocked时才需要进行wake操作
+      ```
+  
+* youtube.com/watch?v=ptba_AqFYCM&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=26
+
+  * 如何打印map。细节接口后续再了解 https://godbolt.org/z/9KT9j6h1b
+  
+* 
 
 
 

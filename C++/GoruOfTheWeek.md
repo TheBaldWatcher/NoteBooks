@@ -28,5 +28,9 @@ Gotw
     * `func(unique_ptr<widget>{new widget{}}, OtherFunc())`
 * [#90 Solution: Factories](https://herbsutter.com/2013/05/30/gotw-90-solution-factories/)
   * 工厂别返回裸指针。建议返回unique_ptr
+* [#95 Solution: Thread Safety and Synchronization](https://herbsutter.com/2014/01/13/gotw-95-solution-thread-safety-and-synchronization/)
+  * It is always true that the code that knows about and owns a writeable shared variable is responsible for synchronizing access to it. If the writeable shared state is hidden inside the implementation of some class, then it’s simply that class’ internals that are the ‘owning code’ that has to synchronize access to (just) the shared state that only it knows about.
+    * 比如shared_ptr中的引用计数。这作为一个internal，对上层不感知；但指针本身上层是感知的，需要同步保护。
+  * 哪些需要fully internally synchronized：跨thread通信的，比如消息队列、
 * [#GotW-ish Solution: The ‘clonable’ pattern](https://herbsutter.com/2019/10/03/gotw-ish-solution-the-clonable-pattern/)
   * 如何实现clone接口
