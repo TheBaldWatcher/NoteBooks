@@ -1,5 +1,9 @@
 
 
+[toc]
+
+
+
 ## 2014
 
 * make simple tasks simple!
@@ -96,8 +100,6 @@
       * Separate variables that should be able to used concurrently by different threads should be far enough apart in memory
   
 * [Walter E. Brown "Modern Template Metaprogramming: A Compendium, Part I"](https://www.youtube.com/watch?v=Am2is2QCvxY)
-
-  * 
 
 
 ## 2016
@@ -470,11 +472,481 @@
       // 使用3个状态的Stat: Full, Empty, Blocked，只有Blocked时才需要进行wake操作
       ```
   
-* youtube.com/watch?v=ptba_AqFYCM&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=26
+* [Victor Zverovich “A modern formatting library for C++”](youtube.com/watch?v=ptba_AqFYCM&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=26)
 
   * 如何打印map。细节接口后续再了解 https://godbolt.org/z/9KT9j6h1b
   
-* 
+* [Allan Deutsch “Esoteric Data Structures and Where to Find Them”](youtube.com/watch?v=-8UZhDjgeZU&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=29)——一些数据结构
+
+  * slot map。找到个[github](https://github.com/SergeyMakeev/slot_map)
+    * slot {index, generation} -> data {}, freelist
+
+  * bloom filter：m-bit长度，e可接受误差，k-hash函数个数，n元素个数
+    * 误差$m = -1.44n * log_2(\epsilon); k = -log_2(\epsilon)$。即$m,k \propto log\epsilon$
+    * TODO——bloom不支持删除，布谷？
+
+  * Hash pointer: 存pointer时还存了对象的hash，确保hash是否有变过。好像是区块链里会用
+  * 顺便提个HyperLogLog，[参考](https://www.yuque.com/abser/aboutme/nfx0a4)。用来估算总量。误差$1.04/\sqrt{m}$
+    * 原理：hash足够均匀时，可以将二进制的0、1中，最高位1出现的位置视作伯努利过程。可以根据这个位置，反推存了多少个元素
+    * 为了减少波动，会按bit位进行分桶，并取调和平均
+
+* [Michael Park “Enhanced Support for Value Semantics in C++17”](https://www.youtube.com/watch?v=LmiDF2YheAM&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=30)
+
+  * | value semantics      | optional<T>                                       | variant<Ts...> | any   |
+    | -------------------- | ------------------------------------------------- | -------------- | ----- |
+    | reference semantics  | T*                                                | AbstractBase*  | void* |
+    | # of possible states | \|T\| + 1, <br />或者\|T\|？比如strol所有值都合法 | (... +\|Ts\|)  | 无限  |
+  
+    
+  
+  * optional
+  
+    * Magic number: 0、-1、npos。
+  
+      * 需要从值域中偷一个数，但不一定可以，比如strol都是合法值
+  
+      * 不在api中，需要人工校验
+  
+      * ```C++
+        pid_t pid = fork();
+        if (pid == 0) { // I'm child
+          // ...
+        } else {  // I'm parent: pid is child
+          // ...
+          kill(pid); // fork失败时会返回-1, kill(-1)会删除几乎所有进程，boom
+        }
+        ```
+  
+    * 使用场景：返回值、arg、成员变量
+  
+    * careful: nullopt_t 比任何T都小。最好不要进行optional<T>和T的比较。
+  
+    * ```c++
+      optional<int> Car::get_speed() const; // 如果仪表失灵，则返回nullopt
+      bool Car::can_accelerate () const {return get_speed() < MAX_SPEED;} // 仪表失灵后可无限加速
+      ```
+  
+  * Variant——type-safe union
+  
+    * c++11：MPark.Variant
+    * valueless_by_exception最好设个默认值，避免variant处于这个状态
+  
+  * any——type-safe void*。注意，这里是value语义，即deep copy
+  
+    * any_cast<T>会导致有临时对象，最好用ref，即any_cast<T&>，或者用指针，即any_cast<T>(&a)
+  
+* [Fedor Pikus “C++ atomics, from basic to advanced. What do they really do?”](youtube.com/watch?v=ZQFzMfHIxng&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=31)
+
+  * 哪些类型可以作为atomic：trivially copyable, i.e., memcpy
+  * x = x+1不是atomic的，x+=1是atomic的
+  * 一个atomic类型是不是lock free的取决于platform和run-time
+    * 可以用`constexpr is_always_lock_free`判断compile time的
+    * 剩下的有些取决于runtime，主要是alignment原因
+
+  * atomic可能比mutex慢的原因
+    * atomic是share的，主要是读。（？mutex为啥没这个问题）
+    * 可能有false sharing的问题
+
+  * compare_exchange_weak/strong——spuriously fail
+    * 在硬件层会有锁。获取锁在某些平台开销比较大，weak允许拿锁失败，即便`expect == *this`，即spuriously fail
+    * Atomic variable as gateways to memory access
+      * For acquiring exclusive access: 读到的其他线程提供的数据必须准备完毕，不能是中间状态
+      * for releasing into shared access：自己准备的数据必须完毕，不能是中间状态
+
+    * 一定要把memory order写出来：performance + 可读性
+    * when to use atomic instead of lock
+      * performance (measure)
+      * difficult or expensive to implement with locks(list, trees)
+      * drawbacks of locks are important(deadlocks, priority conflicts, latency prombelms)
+
+* [Fedor Pikus “Read, Copy, Update, then what? RCU for non-kernel programmers”](youtube.com/watch?v=rxQ5K9lo034&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=75)
+
+  * Lock-free solution: 很通用
+  
+  * read-write locks: updates are rare的场景。优化reader有overhead
+  
+  * RCU
+    * 应用场景：低频写、对数据有容错（即wirter强制reuse、reclaim内存后，reader可以应对）、只能有一个writer？
+  
+    * reader、writer相互不阻塞
+  
+  * 随想：
+    * 对于无锁队列：以MPXC为例
+      * list的实现方式只需要准备好数据，然后update
+  
+      * 定长vec实现，需要分两步：先更新队列（deque/enque_pos），然后更新数据，并标志就绪（sequence）
+  
+    * 好像就是泛化版的double buffer
+  
+* [Sven Over “folly::Function: A Non-copyable Alternative to std::function”](youtube.com/watch?v=SToaMS3jNH0&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=36)
+
+  * std::function的存储：48B: invoking-func-ptr, manager-func-ptr, 32B stored wrapped object（再大一些的改在堆上）
+  * std::function的问题：
+    * 只能处理copyable，move-only的无法处理（主要是function被copy时不好处理。不过我们很少copy std::function）
+    * const不正确：operator()是const的，但是wrapped object是non-const的
+
+  * folly::function的优势：——不过大小上涨了，64B。没啥特别的原因，cacheline友好算一个
+    * 支持move-only的callables——这也就导致其无法被copy
+    * non-copyable types 应当是 noexcept-movable——对容器的优化。所以folly::function是nonexcept-movable
+    * const: `Function<void ()>, Function<void () const>` 。
+
+* [Kostya Serebryany “Fuzz or lose...”](youtube.com/watch?v=k-Cv8Q3zWNQ&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=36)
+
+  * 一个做自动化测试的库。看上去蛮有意思的。
+
+  * 其他参考：[tutorial](https://github.com/google/fuzzing/blob/master/tutorial/libFuzzerTutorial.md)，搜到的一个[ppt](https://www.usenix.org/sites/default/files/conference/protected-files/enigma_slides_serebryany.pdf)。
+
+  * macos:在macOs下，clang缺少库，brew能安装15版本，但是bazel会报找不到库的问题，不知道怎么设置。等后面mac升级到clang15再看看吧
+
+    * ```bash
+      brew install llvm
+      /usr/local/opt/llvm/bin/clang
+      clang++ -g -fsanitize=address,fuzzer fuzzing/tutorial/libFuzzer/fuzz_me.cc
+      ```
+      
+    * [Bazelbuild/rules_fuzzing](https://github.com/bazelbuild/rules_fuzzing)
+
+* [Robert Ramey “How to Write Effective Documentation for C++ Libraries...”](youtube.com/watch?v=YxmdCxX9dMk&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=38)
+
+  * 问题：代码开发完后才写文档。两个问题：花时间（本身文档也不是那么好些）、还有可能发现bug要调整代码（但是这个时候已经进入进度尾声了，单测也有类似问题）
+  * 办法
+    * 开发时就写文档
+    * 要简洁。
+
+  * 内容格式参考
+    * introduction - purpose of  the library
+    * motivating example with explanation
+    * notes
+    * rationale
+    * reference
+
+* [Nicolai Josuttis “The Nightmare of Move Semantics for Trivial Classes”](youtube.com/watch?v=PNRju6_yn3o&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=40)
+
+  * 对于string或者类似的，构造上要支持多个类型的，可以考虑pass-by-value。
+
+  * ```c++
+    struct Cust{
+      string first;
+      string last;
+      int id;
+    };
+    
+    Cust c{"Joe", "Fix", 42};
+    Cust d{str, "Fix", 42};
+    Cust e{move(s), "Fix", 42};
+    // pass-by-value, 5alloc(4creat + 1cp + 5mv): 2cr+2mv, 1cp+1mv+1cr+1mv,1mv+1mv+1cr+1mv
+    Cust::Cust(string f, string l ="", int = 0) :first(move(f)), last(move(l)), id(i) {}
+    Cust::Cust(const char*) :first(f), last(""), id(i) {} // 处理Cust g = "nico";13:48。不能连转两次
+    // pass-by-ref, the best, but too many overloads. 5malloc(4cr+1cp+1mv)
+    // 主要是T const &和T&&的2x2组合；对于first、last两个字段，如果考虑Cust f{"nico"}，还得小心处理默认参数，不能造成ambiguous。10:59
+    // 如果把char const*考虑进来，则不用担心默认参数，但是组合变成了3x3组合
+    Cust::Cust(string const&f, string const&, int i= 0);  // 1
+    Cust::Cust(string const&f, string &&l = "", int i= 0);  // 2
+    Cust::Cust(string const&f, char const*l, int i= 0);  // 3
+    Cust::Cust(string&&f, string const& l, int i= 0);  // 4
+    Cust::Cust(string&&f, string&& l = "", int i= 0);  // 5
+    Cust::Cust(string&&f, char const* l, int i= 0);  // 6
+    Cust::Cust(char const* f, string const& l, int i= 0);  // 7
+    Cust::Cust(char const* f, string && l = "", int i= 0);  // 8
+    Cust::Cust(char const* f, const char *l, int i= 0);  // 9
+    // 或者写模板，但是要考虑各种情况，需要写一些SFINAE
+    // S2 = string: 为了处理Cust f{"Nico"};如果不指定默认参数，在推导数组时会报错。另外指定成const char*也有问题23:24
+    // 第三个模板参数是为了处理Cust g{f};其中f也是一个Cust，因此要加个判断，避免处理<Cust&, string>
+    // 如果不考虑继承，为了处理S1为右值，需要写为is_same_v<S1, Cust&>而非is_same_v<S1, Cust>
+    // 如果要考虑继承，写为is_convertible_v<S1, Cust>。但这里逻辑有死循环：is_convertible依赖构造函数，而构造函数此时又依赖了is_convertible。因此改写为is_convertible_v<S1, string>
+    template <typename S1, typename S2 = string, typename = enable_if_t<is_convertible_v<S1, string>>>
+    Cust(S1&&f, S2&& l = "", int i = 0) : first(forward<S1>(f)), last(forward<S2>(l), id(i)){};
+    ```
+
+* [Nicolai Josuttis “C++ Templates Revised”](youtube.com/watch?v=ULX_VTkMvf8&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=72)
+
+  * ``` c++
+    // 捕获
+    inline constexpr auto isValid = [](auto f) {
+      return [](auto && ...args) { // 不需要对f进行捕获，因为后面是用在decltype中：unevaluated context 19:56
+        return decltype(isValidImpl<decltype(f), decltype(args) &&...> (nullptr)){};
+      }
+    }
+    // 顺序
+    remove_reference_t<remove_const_t<onst int&>; // const int
+    remove_const_t<remove_reference_t<onst int&>; // int
+    // 考虑value category  23:39
+    is_copy_assignable_t<int>; // true
+    is_assignable_t<int, int>; // false, 42 = 42
+    is_assignable_t<int&, int>; // ok
+    // 	&collapse
+    // 		T& &	-> T&
+    // 		T& && -> T&
+    // 		T&& & -> T&
+    // 		T&& &&-> T&&
+    // 	decltype(auto) 33:08
+    //		prvalue: 	T
+    //		lvalue: 	T&
+    //		xvalue:	 	T&&
+    
+    // 模板参数可以传const char*, 但是要求w/o linkage——啥意思？24:35
+    template <typename T, auto S> // S for const char*
+    class AddSuf {};
+    void func() {
+      static const char suffix [] = ", "; // 注意，是数组，而不是const char*
+    	cout<<AddSuf<sufix>; // 可以传字符串
+    }
+    
+    // return应为auto，不能为T, 比如传string_view时，可能会有问题。我们需要func(sv,sv)->string，重载了op+。45:58
+    // 顺带说下sv导致AlmostAlwaysAuto broken。auto const&对于string或延长生命周期，但是对于sv无法阻止数据的释放
+    string operator+(string_view, string view); // 这里重载后，sv+sv返回string
+    template<typename T>
+    auto double_x(T& x); // 需要deduction guide处理下"xxxxx"字符串
+    // 通过decltype保留右值
+    template<typename T>
+    decltype(auto) call(T& x) {
+      if constexpr (/*return type is void*/) {return ;}
+      else { 
+        decltype(auto) ret = invoke...;
+        return ret; // 注意，这里不要return (ret);否则decltype(auto) = call会变成T&
+      }
+    }
+    ```
+    
+  * 
+
+* [Arthur O'Dwyer “dynamic_cast From Scratch”](youtube.com/watch?v=QzJL-8WbpuU&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=45)
+
+  * dynamic_cast的一个实现。可以用来复习c++的对象存储方式
+
+* [Ansel Sermersheim “Multithreading is the answer. What is the question?](youtube.com/watch?v=GNw3RXr-VJk&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=48)
+
+  * 提到了一个库[CopperSpice](https://www.copperspice.com/about.html)，不知道是否有用，可以留意下。好像后面的cppcon和cppnew都会再提及
+
+  * race condition: a resource is accessed by multiple threads simultaneously, and at least one is a write
+
+  * 一些建议：
+
+    * 避免太多线程（one active thread per core is ideal）
+    * 将阻塞calls挪到异步线程中
+    * 减少shared data——减少通讯、race condition
+
+  * 一些CR
+
+    * map需要考虑元素删除的问题，否则会一直增长下去
+
+  * ```c++
+    // shared_guared 12:12
+    // 类似Rust里的Mutex，把锁和对象绑在一起，避免拆开使用
+    template<typename T, typename M = shared_timed_mutex>
+    class shared_guared{
+     public:
+      using handle = unique_ptr<T, deleter>;
+      
+      template<typename ...Us>
+      shared_guared(Us &&...data) : forward<Us>() {}
+      
+      handle shared_lock() const;
+      handle lock() {
+        unique_lock<M> lock(mutex_);
+        return handle(&m_obj, deleter(move(mutex_)));
+      }
+     private:
+      class deleter {
+       public:
+        using pointer = T*;
+        deleter(unique_lock<M> lock) : lock_(move(lock)) {}
+        
+        void operator()(T* ptr) {
+          if (lock_.owns_lock()) {
+            lock_.unlock();
+          }
+        }
+       private:
+        unique_lock<M> lock_;
+      };
+      shared_mutex mutex_;
+    };
+    
+    class MyCache {
+      using ValType = shared_ptr<int>;
+      // const 避免了读写锁时，只读+[]导致的多线程问题
+      ValType lookup(string key) const {
+        // to finish 
+      }
+      
+     private:
+      shared_guared<map<string, ValType>> cache_;
+    };
+    ```
+
+  * [cppnow](https://www.youtube.com/watch?v=rNHLp44rMSs)_——没咋细看，后面有需要再研究
+
+    * CsLibGuarded
+
+    * 提到了一个RCU的算法——ReadCopyUpdate。多线程读写时，写不阻塞读，只阻塞写。29:00
+
+    * 写很直观，类似compare_exchange_weak，主要是什么时候去删节点：
+
+      * ![image-20230315210354109](./cppcon/image-20230315210354109.png)
+
+    * ```c++
+      struct zombie_list_node {
+        atomic<zombie_list_node*> next;
+        node *zombie_node;
+        atomic<rcu_guard*> read_in_process; // 第四步中的remove entry是将该指针置nullptr
+      }
+      ```
+
+    * 这里reader执行了reclaim memory，会对性能有些影响：Fedor Pikus 48:52
+
+* [Alisdair Meredith “Recreational C++”](youtube.com/watch?v=ovxNM865WaU&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=50)
+
+  * 过了下`std::is_function, std::is_arithmetic`的实现
+
+  * [Eric Niebler](https://stackoverflow.com/questions/43470741/how-does-eric-nieblers-implementation-of-stdis-function-work)的实现。挺有意思的，但是有bug：an array of incomplete class会被错误识别为function
+
+    * ```c++
+      // 使用priority_tag来进行tag_dispatch. 派生类比基类可用范围更窄，即SFINAE优先级更高
+      // 这样可以实现函数重载的优先级顺序
+      // 函数签名为char (xx) [#],即返回类型为char[#]. 这样后面就可以通过sizeof进行判断
+      // decltype((*(T*)0)[0])等价于std::declval<T>()[0], 或者std::is_array<T>
+      //    * 前者需要多敲写代码（？个人感觉还短些）
+      //    * 后者的话会导致实例化一个模板，可能导致代码膨胀
+      //    * 字面意思是：将0强转为T*, 然后deref,庵后index
+      
+      template<int I> struct priority_tag : priority_tag<I - 1> {};
+      template<> struct priority_tag<0> {};
+      
+      // Function types here:
+      template<typename T>
+      char(&is_function_impl_(priority_tag<0>))[1];
+      
+      // Array types here:
+      template<typename T, typename = decltype((*(T*)0)[0])>
+      char(&is_function_impl_(priority_tag<1>))[2];
+      
+      // Anything that can be returned from a function here (including
+      // void and reference types):
+      template<typename T, typename = T(*)()>
+      char(&is_function_impl_(priority_tag<2>))[3];
+      
+      // Classes and unions (including abstract types) here:
+      template<typename T, typename = int T::*>
+      char(&is_function_impl_(priority_tag<3>))[4];
+      
+      template <typename T>
+      struct is_function
+          : std::integral_constant<bool, sizeof(is_function_impl_<T>(priority_tag<3>{})) == 1>
+      {};
+      
+      // 另一个版本, 函数指针不能是const、也不能是ref
+      template<typename T>
+      constexpr bool is_func_v = !is_const_v<const T> and !is_reference_V<T>;
+      
+      //// is_arithmetic ////
+      // 对于arithmetic类型，无法重载unary +
+      template<typename T>
+      void operator+(T);
+      
+      template<typename T, typename = void>
+      constepxr bool is_arithmetic_v = false;
+      
+      template<typename T, 
+      	void_t<
+          decltype(+T{})& // 对于可用重载的，这里返回类型为void, void不能&
+          decltype(T{} * T{}) // filter: pointer or array
+          decltype(T{} % 1) // filter: float
+        >
+      >
+      constepxr bool is_arithmetic_v = true;
+      
+      //// get ////
+      template<typename ...>
+      struct tuple_imp;
+      
+      // 这里index_sequence的签名和std的不符合呀，是不是ppt里有笔误
+      // 之所以要wrap<Index, Types>而不是直接Types是因为可能有重复的类型，但基类不能重复
+      template<size_t ...Index, typename ... Types>
+      struct tuple_imp<index_sequence<Index..., Types ...> : wrap<Index,Types>... {};
+      
+      template<typename...Types>
+      struct tuple : tuple_imp<index_sequence_for<Types...>, Types...> {};
+      
+      template <size_t N, typename T>
+      struct wrap { ...operator() ...{return value;} };
+      
+      template <size_t N, typename N>
+      constexpr auto access(Wrap<N, Type> &x) noexcept -> Type & {return x;}
+      
+      template <size_t N, typename ...Types>
+      constexpr auto get(Tuple<Types...> &x) noexcept -> tuple_ement_t<N, Tuple<Types>> & {
+        return access<N>(x);  // 注意，这里通过引用切到了基类
+      }
+      ```
+
+* [Tony Van Eerd “Postmodern C++”](youtube.com/watch?v=QTLn3goa3A8&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=58)
+  * 说实话不是特别明白在说啥，但是押韵挺有意思的——主要是思想方式
+  * 代码要注重isolation。比如代码抽成函数，让我们更聚焦当前这小部分逻辑
+  * 代码的一些抉择取决于context与对象。比如error handling虽然有exception、error code、logging、termination、user message等方法。但用哪一个取决于你要交流的对象，比如library author、calling developer还是end user。
+
+* [Jason Turner “Practical C++17”](youtube.com/watch?v=nnY4e4faNp0&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=58)——一些新特性的介绍
+  * structure binding、if/switch init、fold expression、if constexpr、string_view、emplace_back
+  * noexcept现在是类型签名的一部分，类似const
+  * NRVO无法用于subobject，即pair<int, string> 在返回.second时需要加move，否则直接return会有copy。structure binding不能解决这一问题。
+
+* [Titus Winters “Hands-On With Abseil”](youtube.com/watch?v=xu7q8dGvuwk&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=60)
+  * 避免使用过长的namespace。从可读性上来说，最好只有1层；另外，名字应更具可读性——比如`foo::file::SetContents -> boo::SetFileContests`
+
+* [John Lakos “Local ('Arena') Memory Allocators](youtube.com/watch?v=nZNd5FjSquk&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=74)
+
+  * pmr可以让不同alloctor的对象放在一个容器、函数里。即不影响类型系统
+  * vitual和inline语义上有些矛盾。因此，对于按指针访问时，inline会被忽略掉；但如果按对象访问，则是inline替换
+  * Density, Variation——维度补充下
+    * D+V  benchmark在高Utilization、无多线程Contention时: globle > Multipool > multipool<Mono> > Monotonic
+    * Locality: 如果多个线程，不断地从一个线程pop并push到另一个线程，会导致diffusion，即不同线程的memory交织在一起，cache不友好、且会出现false sharing。如果缺少local分配器时，会出现这种情况
+      * ![image-20230322215512142](./cppcon/diffusion.png)
+      * 这个和fragement不一样，内存碎片是内存散落在各处，无法有效利用
+      * ![image-20230322215720789](/Users/jeashtower/Desktop/myFiles/NoteBooks/C++/cppcon/image-20230322215720789.png)
+      * 解决办法是使用thread local的对象池。另外，可能要考虑数据copy，避免slice（例子里是list）导致需要访问的内存分在在各处
+
+* [John Regehr “Undefined Behavior in 2017](youtube.com/watch?v=v1COuU2vU_w&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=77)
+
+  * Somebody once told me that in basketball you can't hold the ball and run. I got a basketball and tried it and it worked just fine. He obviously didn't understand basketball.——一个joke
+
+  * ub可能现在没问题，但是随着compiler、compiler version、optimization level、platform改变而暴露出来
+
+  * ub时，程序可能当场就挂、或者跑到后面再挂、甚至代码语义变更
+
+  * ```c++
+    // debug或compiler优化时，ub会导致程序语义变更。下面的例子用gcc -O2进行编译
+    
+    // 由于printf在p为null时是ub。所以compiler会假定p不为空，会优化掉if(p)
+    void foo(char *p) {
+        // printf("%s\n",p); debug时开/关这块代码
+       if (p) { *p=5;}
+    }
+    // p、q中任意一个指针为null，会导致ub。因为assemble代码只有一行，优化掉了if(!q)的判断。30:55
+    void foo(int *p, int *q, size_t n) {
+      memcpy(p,q,n); // jmp memcpy
+      // 被优化掉了，因为它假定p、q如果为null时，memcpy会挂，即便n为0。
+      // 可能的场景：for循环最后一次loop
+      if (!q) {abort();} 
+    }
+    ```
+
+* [Scott Schurr “Type Punning in C++17: Avoiding Pun-defined Behavior”](youtube.com/watch?v=sCjZuvtJd-k&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=79)
+
+  * ```c++
+    // 使用invalid pointer是ub
+    // 使用uintptr_t来接指针, 其提供了**足够大**的类型来接p
+    // 但是我们应该用指针p来进行加减，而不是ip。因为后者不保证有valid pointer——不过大部分情况下都没问题
+    auto ip = reinterpret_cast<uintptr_t> (p);
+    ```
+
+  * 只能用`char*/unsigned char*`或者`std::byte`（推荐后者）来访问对象bit
+
+  * 访问union的非active对象在c++17里是ub
+
+
+
+
+
 
 
 

@@ -107,45 +107,55 @@
 
 # git
 
+* 一些命令
+  
+  * ```bash
+    # 查找公共提交？
+    # https://stackoverflow.com/questions/8475448/find-merge-commit-which-include-a-specific-commit
+    ```
+  
+  * 
+  
 * git log 
+
   * `git log --no-mergs`
   * <img src="./git log common option.png" alt="git log common option" style="zoom:50%;" />
   * <img src="./git pretty format.png" style="zoom:50%;" />
   * <img src="./git log-limit output.png" alt="git log-limit output" style="zoom:50%;" />
   * git config --global alias.last 'log -1 HEAD'
-  
+
 * branch
   * `gco [--track|banchYY] origin/branchXX`
   * `git branch -u origin/serverfix`  设置upstream branch
     * `git merge @{u}` shortcut for upstream branch
-  
+
   * `git rebase --onto master server client`，将client从server基础上diverged的commit, rebase到master
-  
+
 * 多人合作distributed git
-  
+
   * 建议使用`git format-patch`
-  
+
   * 建议少用`git apply -i`（-i 表示交互模式），多使用`git am`
-  
+
     * `git am --resolved`解决冲突。如果有patch的base commit，可以`git am -3`开启3-way maerge。
-  
+
     * `git apply --check`可以查看结果
-  
+
   * `git dif A...B`查看基于A、B公共commit的的B的diff。（3个点...而不是2个..）
-  
+
   * `git config --global rerere.enabled true` 减少重复解决conflict的工作量
-  
+
   * `git describe`显示最近tag到当前commit的信息。另外这个信息可用于check out
-  
+
   * 归档：
-  
+
     * ````shell
       # archive
       git archive master --prefix='project/' | gzip > `git describe master`.tar.gz
       # log
       git shortlog --no-merges master --not v1.0.1
       ````
-  
+
 
 # Android
 
@@ -203,8 +213,10 @@
   * dependency: `src, deps, data`，其中data建议使用`data = glob(["testdata/**"]) `，而非label。`data = ["//data/regression:unittest/."] `只有文件夹增删时才会察觉到改变，修改其中文件则不会。
   * Debug: `$ bazel query --output=build 'attr(generator_function, my_macro, //my/path:all)'`
 
-* remote execution
-  * 
+* bazel con
+  
+  * [BazelCon 2018 Day 2: Collecting Code Coverage With Bazel](youtube.com/watch?v=P51Rgcbxhyk)
+  
 
 
 

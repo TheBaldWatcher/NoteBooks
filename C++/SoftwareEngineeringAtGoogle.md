@@ -46,6 +46,34 @@ https://abseil.io/resources/swe-book
   * three pillars of social interaction: 谦虚、尊重、信任
   * 人际关系很重要，可以极大改善项目推进、救火。
   * lose ego
+  * 学会给出、与接受评论
+  * Blameless post-mortem culture: 复盘很重要。过度的批评会压制复盘文化
+    * 复盘简介
+    * 时间线
+    * 根因
+    * 影响、损失评估
+    * 操作：近期修复
+    * 操作：长期改进
+    * 经验教训：bad（需要避免）、good（可借鉴之处）、lucky（发现的其他知识）
+* knowledge sharing
+  * 避免information islands(限于局部、重复工作、错误理解)、避免单点风险、parroting、haunted graveyards
+  * 文档化（可复用，scalable）
+    * 注重中心/团队文档建设。
+  * 需要有一个好的心智环境：承认自己不知道，不指责别人不知道——TechLeader需要保证这样的环境
+    * 鼓励问问题、对解答者给予物质激励
+    * 注重peer bonus/kudos，推动这种文化
+    * 有论坛、讨论组、中心文档等方式去分享、传递；canonical
+  * Readibility：通过1-5%的held to highest standards的人来带动氛围。强化&传播影响，比文档有更好的效果
+    * static analysis很好
+    * Chesterton’s fence。去理解上下文（拓展知识面），尤其是要进行修改时，要明白它在那里的原因
+* Engineering for Equity
+  * 考虑弱势群体、少数群体。我们始终是有bias的，要意识到，并不断改进、提升包容性
+* How to Lead a Team
+  * Manager，协调业务与团队成员
+  * TechLeader：负责技术细节，将任务按能力、技术栈分配给各同学。TL有时也会进行开发，但也会将任务分配出去（可能会效率会慢一些，但能培养人才）
+  * TechLeaderManager: TL + M，需要平衡自身任务、任务指派、管理工作
+  * 为什么要做管理者：比写代码更有意义，是在做一件事，也更高级，影响更大
+  * 怎么做好管理者：servant leadership。服务于团队，确保团队良好氛围，有安全感。
 * live_at_head
   * "the most important problems in software engineering"
   * dependency provider需要明确：

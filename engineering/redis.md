@@ -25,4 +25,10 @@
     cluster keyslot  ke_name # 查热key对应的分片
     ```
 
-    
+* 监控建议
+
+  * OPS(instantaneous_ops_per_sec)
+  * Latency(最大响应延迟和平均响应延迟)
+  * 内存碎片率(Memory fragmentation ratio)
+  * 被驱逐的 key 数(evicted_keys)
+  * 阻塞客户端数(blocked_clients)

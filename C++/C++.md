@@ -114,6 +114,9 @@ cppcon视频：https://www.youtube.com/user/CppCon/playlists?reload=9
   * https://stackoverflow.com/tags/strict-aliasing/info
   * https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8
     * 使用memcoy到临时变量，绕后靠编译器优化掉个临时变量。bit_cast在处理`sizeof(From)!=sizeof(To)`时也得这样。
+    * cv，using/unsigned、char类型没有问题。基类、union也ok
+    * 如何正确type tune：memcpy
+    * Wstrict-aliasing=1，Wall的等级是3，有些会报不出来
 # Hana
 
 * 视频https://www.youtube.com/watch?v=L2SktfaJPuU&list=PLHTh1InhhwT7esTl1bRitiizeEnksGU7J&index=24
@@ -285,6 +288,8 @@ hana::eval_if;
   * https://wanghenshui.github.io/2019/04/27/launder.html
   
   * https://stackoverflow.com/questions/39382501/what-is-the-purpose-of-stdlaunder
+  
+  * memory launder避免编译期追踪内存是从哪儿来的，避免一些优化。用于const T*
   
 * Evaluation order
 
