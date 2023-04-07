@@ -8,7 +8,16 @@ Gotw
   * SingleEntry/SingleExit只有前半句是对的，后半句甚至会有损性能。因此没有必要` string ret; … ret = i->addr; break; … return ret;`，直接` return i->addr; break; … return {};.`即可
 * [#4 Class Mechanics](https://herbsutter.com/2013/05/20/gotw-4-class-mechanics/)： 一个书写良好的类的示例
 * [#5 overriding virtual functions](https://herbsutter.com/2013/05/22/gotw-5-solution-overriding-virtual-functions/)
-  * NonVirtualInterface: virtual 和 public二选一. non-virtual public Or virtual protect(not private)
+  * NonVirtualInterface: virtual 和 public二选一. non-virtual public Or virtual private
+  * 析构函数比较特殊：要么是virtual public要么是non-virtual protect
+  * 在non-virtual public中，最好只调用一次virtual，避免Fragile Base Class问题
+  * [一篇博文](http://www.gotw.ca/publications/mill18.htm)
+    * virtual public function承载了两件事：接口+实现。可以被避免掉
+    * 更好的类设计，有更细致的区分。子类重载的心智负担也被限定在了更小范围
+    * 顺带说下，可以避免重载默认参数的问题：虚函数的默认参数是编译期绑定
+    * 基类可以增加pre/post-condition check、可以对step进行更细致的划分、重构、pimpl。
+      * 虽然多了一层non-virtual到virtual的转发，但编译器会优化掉
+      * 虽然多了一些接口，但对外API、对内的继承override的信息是分开的，没有引入复杂性
 * [# 6const correctness](https://herbsutter.com/2013/05/24/gotw-6a-const-correctness-part-1-3/)
   * Mutable: writable but logically const
     * 多线程读安全、多线程写安全

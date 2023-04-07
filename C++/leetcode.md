@@ -80,10 +80,20 @@ all：
     * Stk: 232,155,20,739
     * Pq:23,218,239
     * hash: 1, 149,332,
-    * Trie:303,304,560,566,225,503,217,697,594,287,313
+    * Trie:303,304,560,566,225,503,217,697,594,287,313,870,397,307
+  * string: 242,647,696,227,28,409,3,772,5
+  * List: 206, 21,24,160,234,83,328,19
   
   
   
+  
+
+* TODO
+  * morris实现
+  * reservoir sampleing
+  * * 
+
+
 
 Rust
 
@@ -109,11 +119,6 @@ linked list：
      template <typename T>
      inline void hash_combine(std::size_t& seed, const T& val) {
        seed ^= std::hash<T>()(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-     }
-     // auxiliary generic functions to create a hash value using a seed
-     template <typename T>
-     inline void hash_val(std::size_t& seed, const T& val) {
-       hash_combine(seed, val);
      }
      
      template <typename... Types>
@@ -210,7 +215,7 @@ linked list：
        int max_height_ = 0;
      };
      ```
-
+     
 354. Russian Doll Envelopes
 
      ```c++

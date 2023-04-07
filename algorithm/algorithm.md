@@ -64,7 +64,14 @@
   }
   ```
   
+* manache
+
+  * 复杂度: for-i O(N), while-palin_len 每次循环一次都会导致frond_edge增加，最多到s.size()。因此也为O(N)，
   
+  ```c++
+  ```
+  
+* 
 
 
 # 树
