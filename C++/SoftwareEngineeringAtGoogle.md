@@ -128,6 +128,27 @@ https://abseil.io/resources/swe-book
   * mastery——让他们能不断成长技艺
   * purpose——赋予意义
 
+## Leading at Scale
+
+* Always be deciding
+  * 定义盲区
+  * 定义key trade-offs
+  * decide, then iterate——小步快跑
+* Always be leaving——让团队自驱，减少自身负担。你的时间、精力是有限的
+  * 划分权责。负责人的聚焦与自由
+  * delegating。让下属成长。做别人做不了的工作，这样才有意义。比如：
+    * 承上启下：cover团队，向上沟通
+    * 蓝图规划
+  * adjusting and iterating。不断调整，不要锚定
+* Always be scaling
+  * 工作是spiral的：承接工作-解决工作-承接更大的工作（但可能仍是现在的资源）
+  * important versus urgent
+    * 重要的事不紧急，紧急的事不重要。不要被日常工作中的紧急事项淹没，进入reactive mode。
+    * deletegate：do what only you can do
+    * schedule dedicated time：定期花2h在重要不紧急的事上，如：team strategy, career paths ofr your leaders, collaborate with neighbouring teams.
+    * learn to drop balls：关注top20%，其他80%要允许drop。如果某件80%中的事真的重要，它会想办法回到top20%的
+    * protecting your energy：vacation、weekends、breaks during the day(per 90m)
+
 
 ## live_at_head
 

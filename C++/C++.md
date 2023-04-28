@@ -511,6 +511,65 @@ hana::eval_if;
         hardware_destructive_interference_size; // 在一个cache line的最大的size
         ```
     
+  * expert utilities
+
+    * pmr
+    
+        ```c++
+        ///////////////////////////////
+        //// memory resources /////////
+        ///////////////////////////////
+        // new_delete_resource: singleton. new & delete
+        // null_memory_resource: singleton. throw
+        //   synchronized_pool_resource: thread-safe
+        // unsynchronized_pool_resource: not thread-safe
+        // monotonic_buffer_resource: not thread-safe
+        array<byte, 2'000'000> buf;
+        pmr::monotonic_buffer_resource pool{buf.data(), buf.size()}; // 超出buffer后，会退化为new
+        std::pmr::vector<std::pmr::string> coll {&pool};
+        
+        // monotonic_buffer_resource可以用来跳过deallocation
+        {
+          pmr::monotonic_buffer_resource pool;
+          pmr::vector<pmr::string> coll{&pool};
+          for (int i = 0; i < 100; ++i) {
+            coll.emplace_back("just a non-SSO string");
+          }
+          coll.clear(); // destruction but no deallocation
+        } // deallocates all memory
+        
+        /////////////////////////////////////////
+        //// defineing custom memory resource ///
+        /////////////////////////////////////////
+        class Tracker : public pmr::memory_resource {
+          void *do_allocate(size_t bytes, size_t aligment) override;
+          void do_deallocate(void* ptr, size_t bytes, size_t alignment) override;
+          bool do_is_equal(pmr::memory_resource const&other) const noexcept;
+        }
+        
+        /////////////////////////
+        //// 自定义类型里使用PMR ///
+        /////////////////////////
+        struct PmrCustomer {
+          pmr:: string name_;
+          
+          using allocator_type = pmr::polymorphic_allocator<byte>; // type is irrelvant, will be rebound
+          // init constructor
+          explicit PmrCustromer(pmr::string n, allocator_type alloc = {}) :name {move(n), alloc} {}
+          // copy/move。由于move要对比alloc是不是interchangable，有可能会退化成copy，所以不保证noexcept
+          PmrCustromer(const PmrCustromer &c, allocator_type alloc) :name {c.name, alloc} {}
+          PmrCustromer(PmrCustromer &&c, allocator_type alloc) :name {move(c.name), alloc} {} // not noexcept
+        };
+        
+        // 类型转换：string、pmr::string都可以implicit转换至string_view
+        string s{"Paul Kalkbrenner"};
+        PmrCustomr c3{pmr::string{s}};  // implicitly converts s to string_view
+        ```
+    
+    * 在main的最开头创建resource，以保证尽量晚地析构。另外不要用resource创建static对象
+    
+    * 
+    
   * 其他
 
     * ```c++
@@ -518,9 +577,9 @@ hana::eval_if;
       lcm();
       hpot(); // 计算二维、三维距离
       ```
-    
+
     * 
-    
+
 
 
 # 杂项

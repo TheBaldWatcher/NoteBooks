@@ -4,206 +4,6 @@
 
 
 
-## 2014
-
-* make simple tasks simple!
-  * being too clever is not clever: 太trick或需要思考的代码，后面维护的时候会导致至少、甚至更多的思绪——nightmare!
-    * Design for clarity: 
-      * 必要的 + 意外的
-      * 尽量干掉后者：避免过度抽象、good interface（隔离好脏逻辑）
-  
-* [Leak-Freedom in C++... By Default.](https://www.youtube.com/watch?v=JfmTagWcqoE&t=780s)
-  * pimpl使用const unique_ptr
-  * Fixed-but-dynamic-size array: const unique_ptr<T[]>
-  * 使用unique_ptr表示树时，可能会有析构时的stack overflow：n->child->child->chid->...->~Node()
-  * don't own "upwards", 以避免loop。这个有点类似lock，don't pass an owner down to "unkown code" that might store it.
-  
-* [Data-Oriented Design](https://www.bilibili.com/video/BV12x411P7fU?p=2&vd_source=cd2e888c356719a0724eacfa14acabc8)  [知乎解读](https://zhuanlan.zhihu.com/p/34425262) 。
-
-  * Lies:
-
-    * Software is a platform——hardware is
-    * code designed around model of the world——model只是我们对现实的模拟
-    * code is more important than data
-
-  * Cache 很重要
-
-    * 耗时
-
-      * L1~ 3cycle
-      * L2 ~ 20cycles
-      * Ram 200 cycles
-
-    * 使用SOA(structures of array)代替AOS（array of structures）。这样要访问的数据都在一起
-
-    * 注意数据排布。
-
-      * ```c++
-        struct {
-          bool xxx; // 1
-          bool yyy; // 2
-          Mat mmm; // 4, 由于前面的数据，一个64cacheline无法一次性读完Mat，导致要获取两次
-          bool zzz; // 68
-        }
-        ```
-
-* [back to the basic](https://www.bilibili.com/video/BV12x411P7fU?p=5&vd_source=cd2e888c356719a0724eacfa14acabc8)
-
-  * 如无理由，不要overthink——be default
-  * pass by value and std::move inside: only for constructor 其他情况较少适用
-
-* [Make Simple Tasks Simple - Bjarne Stroustrup](https://github.com/CppCon/CppCon2014/tree/master/Presentations/Make Simple Tasks Simple)
-
-* [The Philosophy of Google’s C++ Style Guide](https://www.bilibili.com/video/BV12x411P7fU?p=19&vd_source=cd2e888c356719a0724eacfa14acabc8)
-
-  * 代码规范是为了reader而非writer
-
-* [Lock Free Programing](https://www.bilibili.com/video/BV12x411P7fU?p=44&vd_source=cd2e888c356719a0724eacfa14acabc8)
-
-  * Double check：如果ptr是原子的，就没问题
-
-    * ```c++
-      atomic<T *> T::pInstance {nullptr};
-      T * T::Instance() {
-        T* p = pInstance; // 这里以及下面使用T*，减少一次atomic读。视频24:00左右
-        if (nullptr == p) {
-          lock_guard lg{mut_T};
-          if (nullptr == (p = pIntance)) {
-            pInstance = p = new T{};
-          }
-        }
-        return p; // 这里的atomic读被优化掉了
-      }
-      ```
-  
-  * part 2。32:00左右：解决ABA问题（reader）；解决find（find的结果可能被pop删掉了）
-  
-    * ```c++
-      template<typename T> class slist {
-        struct Node{T t; shared_ptr<Node> next;}; // T* -> shared_ptr to solve ABA
-        atomic<shared_patr<Node>> head;
-      };
-      ```
-      
-    * ABA问题：lock-free是计算后while(CAS)不断尝试。一般来说，这个值是地址。那么存在A地址被pop并释放后，新的对象复用了这个地址。那么问题的关键就是在CAS完成前，不要复用这个地址，即不要释放。
-  
-      * 办法有多个。part2 16:00
-      * 其中有shared_ptr，另外由于是多线程，所以head得是atomic_shared_ptr
-      * [stackoverflow](https://stackoverflow.com/questions/31277130/atomic-shared-ptr-for-lock-free-singly-linked-list) 上一篇讨论。
-  
-  * to improve scalability, we need to minimize the contention
-  
-    * reduce the size of critical sections
-    * reduce sharing by isolating threads to use different parts of the data structure
-      * moving cleanup from producer to consumer lets consumers touch only the head, producers touch only  the tail
-    * reduce false sharing of different data on the same cache line, but adding alignment padding.
-      * Separate variables that should be able to used concurrently by different threads should be far enough apart in memory
-  
-* [Walter E. Brown "Modern Template Metaprogramming: A Compendium, Part I"](https://www.youtube.com/watch?v=Am2is2QCvxY)
-
-
-## 2016
-
-* [A ＜chrono＞ Tutorial](https://www.youtube.com/watch?v=P32hvk8b13M&list=PLHTh1InhhwT7J5jl4vAhO1WvGHUUFgUQH&index=64)
-  * 为啥要弄个库：
-    * 10ms明确地表示10毫秒
-    * 可以快速筛出代码中的时间，和其他用途的数字区分开。并快速切换单位，如s -> ms。f(seconds)
-    * 灵活的时间转换比如 `frame = duration<int32_5, ratio<1,60>>`，输出时按ms进行cout
-  * 什么时候需要time_point_cast和duration_cast: 隐式转换会丢信息时，比如1234ms->1s
-
-* [tuple＜＞: What's New and How it Works](https://www.youtube.com/watch?v=JhgWFYfdIho&list=PLHTh1InhhwT7J5jl4vAhO1WvGHUUFgUQH&index=76)
-  * 简化代码：字典序比较:`tie(a,b,c) < tie(other.a, other.b, other.c)`
-
-* [Variants: Past, Present, and Future](https://www.youtube.com/watch?v=k3O4EKX4z1c&list=PLHTh1InhhwT7J5jl4vAhO1WvGHUUFgUQH&index=33)
-
-  * ```c++
-    template <typename LeafData>
-    struct BinaryTree;
-    
-    template <typename LefeData>
-    struct BinaryTreeBranch {
-      shared_ptr<BinaryTree<LeafData>> left; // maybe unique_ptr better?
-      shared_ptr<BinaryTree<LeafData>> left;
-    };
-    
-    template <typename LeafData>
-    struct BinaryTree {
-      using Value = variant<LeafData, BinaryTreeBranch>;
-      Value value;
-    }
-    ```
-
-* [std::accumulate: Exploring an Algorithmic Empire](https://www.youtube.com/watch?v=B6twozNPUoA&list=PLHTh1InhhwT7J5jl4vAhO1WvGHUUFgUQH&index=37)
-
-  * ```c++
-    // 简化代码
-    int sum;
-    for (auto val : val_vec) {
-      str += val;
-    }
-    // vs
-    int sum = accumulate(val_vec.begin(), val_vec.end(), 0, [] (auto pre, auto s) {return pre + s;});
-    // accumulate + associativity -> reduce
-    int sum = reduce(val_vec.begin(), val_vec.end(), 0, [] (auto pre, auto s) {return pre + s;});
-    ```
-
-  * [monoids](https://www.cnblogs.com/richieyang/archive/2021/03/08/14323842.html) ——可以应用accumulate
-
-    * Closure: 作用后依然是monoids
-    * associativity: 结合律
-    * Identity element: 有0元素
-    * [Integer to Roman](https://leetcode.com/problems/integer-to-roman/) 。
-      * `optional<To, From> func(From)`
-    
-
-* [Variadic expansion in examples](https://www.youtube.com/watch?v=Os5YLB5D2BU&list=PLHTh1InhhwT7J5jl4vAhO1WvGHUUFgUQH&index=47)
-
-  * ```c++
-    // 一个例子
-    template <typename... Ts>
-    auto double(variant<Ts...> v) {
-      using visitor_t = void (*)(variant<Ts...>);
-      static visitor_t handlers[] = {[](variant<Ts...> v) {
-        using T = Ts;  // 获取当前的T
-        cout << get<T>(v) + get<T>(v) << endl;
-      }...};
-      handlers[v.index()](v);
-    }
-    
-    variant<int, float, string> d = "s";
-    double(d);
-    
-    // 实现个variant的构造函数
-    variant(const variant &other) : tag(other.tag) {
-      using visitor_t = void (*)(variant & self, variant const &other);
-      auto generator = [](auto type) {
-        using Arg = typename decltype(type)::type;
-        return [](cariant &self, const variant &other) {
-          new (&self.storage) Arg(*reinterpret_cast<const Arg *>(&other.storage));
-        };
-      };
-      static visitor_t copy_ctors[] = {generator(id<Ts>())...};
-      copy_ctors[tag](*this, other);
-    }
-    
-    ```
-
-* [The Exception Situation](https://www.youtube.com/watch?v=Fno6suiXLPs&list=PLHTh1InhhwT7J5jl4vAhO1WvGHUUFgUQH&index=43)
-
-  * 打日志是不可取的，程序出错了就不应该再以错误的状态跑下去
-  * 可以考虑c风格的bool出参，或者进一步，c++17的optional、tuple。后者写起来很干净。不过会改掉原代码的api、会污染原本的code path
-  * exception更干净：
-    * 几乎不会对原代码有太多影响。api、code path等
-    * 并且隔离开了disappointment detection和handling（detection处一般缺少如何正确handle的context）
-    * 构造函数无返回值，只能走exception（或者两步init）
-    * 除了极端情况（视频里就举了一个，且应该后来被修复了），exception都比其他方式性能好。当然exception比完全不处理还是会有些开销的，视频里说是3%
-  * abseil
-    * mutex提供了读写锁。debug模式下的dead lock
-    
-  
-
-
-
 
 
 # 2017
@@ -239,6 +39,563 @@
 * 甚至会识别你的意图：
   * count二进制表示的1，直接替换成对应的指令
   * 求和1+2+..+n甚至会直接用`n*(n+1)/2`进行替换
+
+## [Carl Cook “When a Microsecond Is an Eternity: High Performance Trading Systems in C++”](https://www.youtube.com/watch?v=NH1Tta7purM&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=20)——一些性能tips
+
+* 配置化不一定需要特别多的虚函数，以多场景配置化举例：
+
+  * ```c++
+    // 3个虚函数表(XX_Base) vs 1个需函数表(ManagerBase)
+    struct Manager{
+      RecallBase *recall_;
+      RankingBase *ranking_;
+      RerankBase *rerank_;
+      void DoRecommend();
+    };
+    
+    template<typename Recall, typename Ranking, typename Rerank>
+    struct Manager: public ManagerBase{
+      Recall recall_;
+      Ranking ranking_;
+      Rerank rerank_;
+      void DoRecommend() final;
+    };
+    ```
+
+  * Don't be afaid to use exceptions(They are zero cost if they don't throw)
+
+  * 对于latency，不建议使用multi-thread。如果要使用：
+
+    * 减小data、考虑copy而非sharing、或许乱序也是可以接受的？
+
+  * denormalized data：空间换时间，保证数据都在一个cache line中
+
+  * 31:00 对比unordered_map。相比拉链法，开放地址法对cache更友好
+
+  * inline/noinline对性能的影响需要测试。强制是否inline应使用always_inlin和noinline
+
+    * `if(Foo()) {} else{}`编译器可能将Foo进行inline，考虑到分支预测，可能在icache中，在hotpath上污染了一些non-hotpath
+
+  * 保证data/instruction cache hot：正常流程很少会走到发出订单，因此用一些dummy请求来强制走到最后一步，但不发订单
+
+  * 可以牺牲一些精度。
+
+    * 另外，pow有些时候[会很慢](https://entropymine.com/imageworsener/slowpow/)，主要是base接近1.0的时候：pow(≈1.0, 1.4), pow(≈1.0, 1.5)
+
+  * 如何测试耗时：搭建个测试链路，这个是最准的
+
+  * 其他
+
+    * inline语义逐渐发生变化：表示可以有多份定义 Because the meaning of the keyword inline for functions came to mean "multiple definitions are permitted" rather than "inlining is preferred", that meaning was extended to variables.
+
+## [P. McKenney, M. Michael & M. Wong “Is Parallel Programming still hard? PART 1 of 2”](https://www.youtube.com/watch?v=YM8Xy6oKVQg&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=23)
+
+* triangle: productivity vs performance vs generality
+
+* Work Partitioning: greatly ↑performance, ↓productivity (更多complexity导致更难理解和debug)
+
+* ParallelAccessControl: ↓performance (比如：线程间同步的开销)
+
+* ResourcePartitioningAndReplication: ↓generality。数据冗余：disks、NUMA、CPU、GPU、cache lines。这冗余的形式往往和具体的领域强相关
+
+* InteractingWithHardware: ↓productivity，尤其是有portable要求时
+
+* 影响cpu的一些因素
+
+  * mispredicted branch
+  * memory reference？
+  * RMW atomic
+  * memory barrier, aka fence. memory ordering
+  * cache miss
+  * I/O operation
+  * ![image-20230228203815434](./image-20230228203815434.png)
+
+* 一些优化及对应缺陷
+
+  * big cacheline: 导致false sharing，解决办法是alignment
+  * prefetching: 在拿line1时，顺便把line2拿了。又回到了big cacheline
+  * store buffer: 将改动缓存起来，等cache来了再写进去。会导致mis-ordering
+
+* 一个例子及其分析：SingleProducerSingleComsumer。减少cache line bouncing
+
+  * ```c++
+    // lock使得其是串行的
+    // lock存在cache line bouncing
+    // lock的获取需要RMW或者fence
+    // handoff per second 4.3M
+    class SingleLock{
+      T* buffer_[M];
+      uint64_t head_{0};
+    	uint64_t tail_{0};
+      mutex lock_;
+      bool TryEnq(T*) {
+        lock_guard g{lock_};
+        ...
+      }
+      T* TryDeq() {
+        lock_guard g{lock_};
+        ...
+      }
+    };
+    
+    // atomic是并行的，开销比lock小
+    // 依然有cache line bouncing: head、tail被不用的线程读写
+    // handoff per second 29.4M
+    class Lamport1983{
+      T* buffer_[M];
+      atomic<uint64_t> head_{0}; // no lock, atomic instead of
+      atomic<uint64_t> tail_{0};
+      bool TryEnq(T*) {
+    		uint64_t t = tail_.load(mo_rlx);
+        if (head_.load(mo_acq) + M == t) ...;
+        tail_.store(t+1, mo_rel); ...;
+      }
+      T* TryDeq() {
+    		uint64_t h = head_.load(mo_rlx);
+        if (tail_.load(mo_acq) == h) ...;
+        head_.store(h+1, mo_rel); ...;
+      }
+    };
+    // 将buffer改为atomic后，TryEnq和TyeDeq减少了cache line bouncing的问题：
+    //   head_, tail_ 只会读其中的一个，不会两个都读
+    // handoff per second: without alignment 27.0M
+    // handoff per second: 58.8M
+    class Giacomoni2008{
+      atomic<T*> buffer_[M]; // this is atomic, and head,tail is not
+      ALIGN_TO_AVOID_FALSE_SHARING size_t head_{0};
+      ALIGN_TO_AVOID_FALSE_SHARING size_t tail_{0};
+      bool TryEnq(T*) {
+    		if (buffer_[tail_].load(mo_acq)) {return false;}
+        buffer_[tail_].store(p,mo_real);
+        tail_ = NEXT(t_); return true;
+      }
+      T* TryDeq() {
+    		T *p = buffer_[head_].load(mo_acq);
+        if (!p) return nullptr;
+        buffer_[head_].store(nullptr, mo_rel);
+        head_ = NEXT(head_); return p;
+      }
+    };
+    
+    // Blocking版本：使用condition variable
+    // 对于使用condition variable的版本，性能偏差。其中一个可优化的细节是
+    // 使用3个状态的Stat: Full, Empty, Blocked，只有Blocked时才需要进行wake操作
+    ```
+
+
+
+## [Allan Deutsch “Esoteric Data Structures and Where to Find Them”](youtube.com/watch?v=-8UZhDjgeZU&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=29)——一些数据结构
+
+* slot map。找到个[github](https://github.com/SergeyMakeev/slot_map)
+  * slot {index, generation} -> data {}, freelist
+
+* bloom filter：m-bit长度，e可接受误差，k-hash函数个数，n元素个数
+  * 误差$m = -1.44n * log_2(\epsilon); k = -log_2(\epsilon)$。即$m,k \propto log\epsilon$
+  * TODO——bloom不支持删除，布谷？
+
+* Hash pointer: 存pointer时还存了对象的hash，确保hash是否有变过。好像是区块链里会用
+* 顺便提个HyperLogLog，[参考](https://www.yuque.com/abser/aboutme/nfx0a4)。用来估算总量。误差$1.04/\sqrt{m}$
+  * 原理：hash足够均匀时，可以将二进制的0、1中，最高位1出现的位置视作伯努利过程。可以根据这个位置，反推存了多少个元素
+  * 为了减少波动，会按bit位进行分桶，并取调和平均
+
+## [Michael Park “Enhanced Support for Value Semantics in C++17”](https://www.youtube.com/watch?v=LmiDF2YheAM&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=30)
+
+* | value semantics      | optional<T>                                       | variant<Ts...> | any   |
+  | -------------------- | ------------------------------------------------- | -------------- | ----- |
+  | reference semantics  | T*                                                | AbstractBase*  | void* |
+  | # of possible states | \|T\| + 1, <br />或者\|T\|？比如strol所有值都合法 | (... +\|Ts\|)  | 无限  |
+
+* optional
+
+  * Magic number: 0、-1、npos。
+
+    * 需要从值域中偷一个数，但不一定可以，比如strol都是合法值
+
+    * 不在api中，需要人工校验
+
+    * ```C++
+      pid_t pid = fork();
+      if (pid == 0) { // I'm child
+        // ...
+      } else {  // I'm parent: pid is child
+        // ...
+        kill(pid); // fork失败时会返回-1, kill(-1)会删除几乎所有进程，boom
+      }
+      ```
+
+  * 使用场景：返回值、arg、成员变量
+
+  * careful: nullopt_t 比任何T都小。最好不要进行optional<T>和T的比较。
+
+  * ```c++
+    optional<int> Car::get_speed() const; // 如果仪表失灵，则返回nullopt
+    bool Car::can_accelerate () const {return get_speed() < MAX_SPEED;} // 仪表失灵后可无限加速
+    ```
+
+* Variant——type-safe union
+
+  * c++11：MPark.Variant
+  * valueless_by_exception最好设个默认值，避免variant处于这个状态
+
+* any——type-safe void*。注意，这里是value语义，即deep copy
+
+  * any_cast<T>会导致有临时对象，最好用ref，即any_cast<T&>，或者用指针，即any_cast<T>(&a)
+
+## [Fedor Pikus “C++ atomics, from basic to advanced. What do they really do?”](https://www.youtube.com/watch?v=ZQFzMfHIxng&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=32)
+
+* 哪些类型可以作为atomic：trivially copyable, i.e., memcpy
+
+* x = x+1不是atomic的，x+=1是atomic的
+
+* 一个atomic类型是不是lock free的取决于platform和run-time
+
+  * 可以用`constexpr is_always_lock_free`判断compile time的
+  * 剩下的有些取决于runtime，主要是alignment原因
+
+* atomic可能比mutex慢的原因
+
+  * atomic是share的，主要是读。（？mutex为啥没这个问题）
+  * 可能有false sharing的问题
+
+* compare_exchange_weak/strong——spuriously fail
+
+  * 在硬件层会有锁。获取锁在某些平台开销比较大，weak允许拿锁失败，即便`expect == *this`，即spuriously fail
+
+    * cpu socket timing-out
+
+    * Spurious fail疑惑点：35:00
+
+      * expect == real，但返回false
+
+      * 它是否知道real的值？知道：那为啥不swap；不知道：它要修改expect为real，以便下次迭代，矛盾。
+
+      * 实际上，分为两步，read+write。spuriously fail是write失败了
+
+      * ```c++
+        bool compare_exchange_strong_weak (T &old_v, T new_v) {
+          // double-checked locking pattern
+          T tmp = value.load(); // current value of the atomic
+          if (tmp != old_v) {old_v = tmp; return false;}
+          
+          // strong
+          Lock L;
+          // weak
+          TimedLock L;
+          if (!L.locked()) {return false;}
+          
+          tmp = value.load();
+          if (tmp != old_v) {old_v = tmp; return false;}
+          
+          value = new_v;
+          return true;
+        }
+        ```
+
+      * 
+
+  * Atomic variable as gateways to memory access
+
+    * For acquiring exclusive access: 读到的其他线程提供的数据必须准备完毕，不能是中间状态
+    * for releasing into shared access：自己准备的数据必须完毕，不能是中间状态
+
+  * 一定要把memory order写出来：performance + 可读性
+
+  * when to use atomic instead of lock
+
+    * performance (measure)
+    * difficult or expensive to implement with locks(list, trees)
+    * drawbacks of locks are important(deadlocks, priority conflicts, latency prombelms)
+
+## [Arthur O'Dwyer “dynamic_cast From Scratch”](youtube.com/watch?v=QzJL-8WbpuU&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=45)
+
+* dynamic_cast的一个实现。可以用来复习c++的对象存储方式
+
+## [John Regehr “Undefined Behavior in 2017](youtube.com/watch?v=v1COuU2vU_w&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=77)
+
+* Somebody once told me that in basketball you can't hold the ball and run. I got a basketball and tried it and it worked just fine. He obviously didn't understand basketball.——一个joke
+
+* ub可能现在没问题，但是随着compiler、compiler version、optimization level、platform改变而暴露出来
+
+* ub时，程序可能当场就挂、或者跑到后面再挂、甚至代码语义变更
+
+* ```c++
+  // debug或compiler优化时，ub会导致程序语义变更。下面的例子用gcc -O2进行编译
+  
+  // 由于printf在p为null时是ub。所以compiler会假定p不为空，会优化掉if(p)
+  void foo(char *p) {
+      // printf("%s\n",p); debug时开/关这块代码
+     if (p) { *p=5;}
+  }
+  // p、q中任意一个指针为null，会导致ub。因为assemble代码只有一行，优化掉了if(!q)的判断。30:55
+  void foo(int *p, int *q, size_t n) {
+    memcpy(p,q,n); // jmp memcpy
+    // 被优化掉了，因为它假定p、q如果为null时，memcpy会挂，即便n为0。
+    // 可能的场景：for循环最后一次loop
+    if (!q) {abort();} 
+  }
+  ```
+
+* [Piotr Padlewski “Undefined Behaviour is awesome!”](https://www.youtube.com/watch?v=ehyHyAIa5so&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=136)。一个类似的讲ub的。
+
+  * deref nullptr是ub。compiler的一个处理办法是把代码标位unreachable，然后对代码进行删减
+
+  * ```c++
+    // main.cpp
+    using Fun = void();
+    static Fun *fun_ptr;
+    void evil() { /*rm something*/ }
+    void set() {fun_ptr = evil;}
+    int main() {fun_ptr();} // evil会被inline到main中。24:13
+    
+    // 忘了return 30:09
+    int foo(bool p) {
+      if (p) {return 42;}
+    }
+    int foo(bool p) {return 42;}
+    
+    // 53:46提到了个bug，导致while中的retry被移除
+    while (!p && --retry) {
+      p = new int(2);
+    }
+    *p = 1;
+    ```
+
+* [Scott Schurr “Type Punning in C++17: Avoiding Pun-defined Behavior”](https://www.youtube.com/watch?v=sCjZuvtJd-k&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=80)
+
+  * ```c++
+    // 使用invalid pointer是ub
+    // 使用uintptr_t来接指针, 其提供了**足够大**的类型来接p
+    // 但是我们应该用指针p来进行加减，而不是ip。因为后者不保证有valid pointer——不过大部分情况下都没问题
+    auto ip = reinterpret_cast<uintptr_t> (p);
+    ```
+
+  * 只能用`char*/unsigned char*`或者`std::byte`（推荐后者）来访问对象bit
+
+  * 访问union的非active对象在c++17里是ub——在c里不是
+
+## [Vinnie Falco “Make Classes Great Again! (Using Concepts for Customization Points)”](https://www.youtube.com/watch?v=WsUnnYEKPnI&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=87)
+
+* all problem in computer science can be solved by another level of indirection —— David Wheeler
+
+* ```c++
+  struct response {
+    int version;
+    int status;
+    string reason;
+    map<string, string> fields;
+    string body;
+  };
+  // 1. body:如何自定义allocator，并且不限于string。模板+特化
+  template <class Body> struct response {
+    // ...
+    Body::value_type body; // 为了存储数据引入了一个类对象，如果是空body，这里有存储开销，需优化
+    void write(ostream& os, response<Body> const&msg) {
+      write_head(os, msg);
+      Body::write(os, msg.body);
+    }
+  };
+  struct string_body { // xx_body, or template
+    using value_type = string;
+    static void write(ostream& os, string const& body);
+  };
+  // 2. 如何在避免空body时的存储开销：继承
+  template <class Body> struct response : private Body::value_type { // 空基类优化
+    typename Body::value_type &body() {return *this;} // ref
+  };
+  template <class Body> struct response {
+    void write(ostream& os, response<Body> const&msg) {
+      write_head(os, msg);
+      Body::write(os, msg.body());
+    }
+  };
+  // 3. 接口优化，对类型进行限制: 有value_type，有write函数
+  template <class B, class = void>
+    struct is_body : false_type{};
+  template <class B<
+    struct is_body<B, void_t<
+      typename B::value_type,
+  		decltype(
+        B::write(
+          declval<ostream&>(),
+          declval<typename B::value_type const&>()))
+  >> : true_type{}; // or use enable_if
+  // 4. 如何让body allocator aware，并支持传参
+  template<class T, class Allocator = allocator<T>>
+    struct vector_body {/*可能需要传参，即无默认构造函数*/};
+  template<class Body> 
+    struct message<false, Body> {
+      template<class... Args>
+        explicit message(Args&&... args) :body(forward<Args>(args)...){}
+    };
+  // 5. Field也类似。顺带将reason存到了Field中。对外接口是reason，内部调用get_reson，不暴露给外界(protect)
+  ```
+
+## [Nir Friedman “What C++ developers should know about globals (and the linker)”](https://www.youtube.com/watch?v=xVT1y0xWgww&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=111)
+
+* link的顺序对global对象有影响，extern对象定义时使用inline
+
+* 总而言之：
+
+  * 全局对象的构造、析构如果有依赖关系，要厘清
+
+  * 全局对象如果依赖了其他全局对象，将其header放到本文件.h中，而不是放在.cc中
+
+* ```c++
+  // static.h
+  struct Informer {
+    Informer() { std::cerr << "ctor" << this << std::endl; }
+    Informer *get() { return this; }
+    ~Informer() { std::cerr << "dtor" << this << std::endl; }
+  };
+  // static.cc
+  Informer g_str = Informer(); // inline Informer ...
+  
+  // dynamic.h
+  #include "static.h"
+  Informer &Get();
+  // dymanic.cc
+  Informer &Get() { return g_str; }
+  
+  // main.cc
+  #include "static.h"
+  #include "dynamic.h"
+  int main() {
+    std::cerr << g_str.get() << "\n";
+    std::cerr << Get().get() << "\n";
+    return 0;
+  }
+  
+  // static,dynamic分开编译
+  // clang++ -std=c++20 -c -fPIC s.cc
+  // ar rcs libs.a s.o
+  // clang++ -std=c++20 -c -fPIC d.cc
+  // clang++ -shared -o libd.so d.o -L./ -ls
+  // clang++ -std=c++20 -c m.cc
+  // link的顺序有影响
+  //   * clang++ -L./  m.o -ls -ld 视频里的string是两次构造、析构，相同的地址。我这边复现出来是两个不同地址，总之有问题
+  //   * clang++ -L./  m.o -ld -ls 正常
+  // c++17使用inline可解这个问题。或者使用Meyer's singleton，不过有些繁琐21:15。
+  
+  // 其他case
+  // 1. lazy要留意析构问题（不只是global对象，我们单例常用到了这种模式），析构顺序是不定的
+  struct Foo {
+    ~Foo() {Looger::instance().log();}
+  }
+  Foo f;  // f先于下面的Logger调用，因此晚于Logger析构，但~Foo里用到了Logger
+  int main() {
+    Logger::instance().log();
+    return 0;
+  }
+  // 2. 如果用到了global，将这些global-defining header放到自己的头文件中
+  // Foo.h
+  struct Foo {Foo();};
+  inline Foo f; // 先看到f再看到std::cerr(其是一个global对象)，但是f的构造函数依赖了std::cerr。Segfault
+  // Foo.cc
+  #include <iostream>
+  Foo::Foo(){std::cerr<<"hello world\n";}
+  int main(){return 0;}
+  //// 另一个例子
+  // pg_1.h
+  #include <iostream>
+  struct Boo { Boo() { std::cout << "Boo\n"; } };
+  Boo bb;
+  // pg.h
+  struct Foo { Foo();};
+  inline Foo f;
+  // pg.cc
+  #include "pg.h"
+  #include "pg_1.h"
+  Foo::Foo() { std::cerr << "Foo" << std::endl; }
+  using namespace std;
+  int main() { return 0; }
+  // 输出，即Foo构造在了Boo前
+  // Foo
+  // Boo
+  ```
+
+* nm查看名字，objdump查看符号细节
+
+## [Arthur O'Dwyer “A Soupçon of SFINAE”](https://www.youtube.com/watch?v=ybaE9qlhHvw&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=113)
+
+* ```c++
+  // 三者等价，都是尝试
+  decltype(void(expression));
+  decltype(expression, void());
+  void_t<decltype(expression)>;
+  
+  // deduce
+  template <class T, class VoidPtr>
+  class fancy_poly_allocator {
+   public:
+    // oops, 类instantiate后，这里失去了deduce，SFINAE不生效
+    //  no type named 'type' in 'std::enable_if<false>';
+    template <class = enable_if_t<is_same_v<VoidPtr, void *>>> // only for void*
+    fancy_poly_allocator() {
+      cout << "fancy_poly_allocator()" << endl;
+    }
+    // 这里用VoidPtr_保持了deduce，延迟到使用时
+    template <class VoidPtr_ = VoidPtr, class = enable_if_t<is_same_v<VoidPtr_, void*>>>
+    fancy_poly_allocator() {
+      cout << "fancy_poly_allocator()" << endl;
+    }
+  };
+  // 调用处
+  fancy_poly_allocator<int, void *> f;
+  
+  // conditional explicit, 控制函数的重载
+  template<typename T>
+  class offset_ptr{
+    explicit offset_ptr(T *p);
+    // 不考虑默认参数时，这俩函数的签名是一样的
+    // enable_if_t = enable_if_t<Condition, bool>
+    template<class U, class = enable_if_t<is_convertible_v<U*, T*>>>
+      offset_ptr(const offset_ptr<U>& rhs);
+    template<class U, class = enable_if_t<!is_convertible_V<U*, T*>
+      																		&& is_static_castable_v<U*, T*>>>
+      explicit offset_ptr(const offset_ptr<U>&rhs);
+    // 通过bool_it_v来解决签名问题
+    template<class U, bool_if_t<is_convertible_v<U*, T*>> = true>
+      offset_ptr(const offset_ptr<U>& rhs);
+    template<class U, bool_if_t<!is_convertible_V<U*, T*>
+      											     && is_static_castable_v<U*, T*>> = true>
+      explicit offset_ptr(const offset_ptr<U>&rhs);
+  };
+  
+  // 函数对某些类型不启用
+  template <class T>
+  struct pointer_traits {
+    static auto pointer_to(T& r) { // should be turn off for T=void
+      return &r;
+    }
+    // 签名里的T&更早求值，会是ill-formed，要想办法延后
+    template<bool B = is_void_v<T>, class = enable_if_t<!B>>
+     static auto pointer_to(T& r) {
+      return &r;
+    }
+    // 和上面类似，TR是ill-formed
+    template<bool B = is_void_v<T>, class TR = enable_if_t<!B, T&>>
+     static auto pointer_to(TR r) {
+      return &r;
+    }
+    // 能编译，但是语义不符合预期：我们操作的是TR的默认参数。但使用时能推断，所以默认参数没被使用。有SegFault
+    template<bool B = is_void_v<T>, class TR = enable_if_t<!B, T>&>
+     static auto pointer_to(TR r) {
+      return &r;
+    }
+    // okay
+    template<bool B = is_void_v<T>>
+     static auto pointer_to(enable_if_t<!B, T>& r) {
+      return &r;
+    }
+  };
+  
+  ```
+
+* [`enable_if`只在deduce时有用](https://stackoverflow.com/questions/13401716/selecting-a-member-function-using-different-enable-if-conditions)，而我们在instantiate一个类后，其类型就是具体的了，不存在deduce，SFINAE不生效的。解决办法就是让它保持deduce，比如加个模板参数之类的
+
+* 其实就是两步实例化的问题。只在第二步有SFINAE，所以第一步的时候会有各种各样的error。我们要想办法延迟到调用处？——猜想，待确认
+
+# 一些没那么重要的
 
 ## [Walter E. Brown “Programming with C++ Constraints: Background, Utility, and Gotchas"](https://www.youtube.com/watch?v=n4ie7tPMXOQ&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=7)
 
@@ -347,225 +704,9 @@
   * Core constant expressions(?) are too difficult to understand
   * One function implemented in two languages is error prone (constexpr and non-constepxr)
 
-## [Carl Cook “When a Microsecond Is an Eternity: High Performance Trading Systems in C++”](https://www.youtube.com/watch?v=NH1Tta7purM&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=20)——一些性能tips
-
-* 配置化不一定需要特别多的虚函数，以多场景配置化举例：
-
-  * ```c++
-    // 3个虚函数表(XX_Base) vs 1个需函数表(ManagerBase)
-    struct Manager{
-      RecallBase *recall_;
-      RankingBase *ranking_;
-      RerankBase *rerank_;
-      void DoRecommend();
-    };
-    
-    template<typename Recall, typename Ranking, typename Rerank>
-    struct Manager: public ManagerBase{
-      Recall recall_;
-      Ranking ranking_;
-      Rerank rerank_;
-      void DoRecommend() final;
-    };
-    ```
-
-  * Don't be afaid to use exceptions(They are zero cost if they don't throw)
-
-  * 对于latency，不建议使用multi-thread。如果要使用：
-
-    * 减小data、考虑copy而非sharing、或许乱序也是可以接受的？
-
-  * denormalized data：空间换时间，保证数据都在一个cache line中
-
-  * 31:00 对比unordered_map。相比拉链法，开放地址法对cache更友好
-
-  * 是否inline需要测试。if-else在inline后似乎无法进行分支预测的优化。强制是否inline应使用always_inlin和noinline
-
-  * 保证data/instruction cache hot：正常流程很少会走到发出订单，因此用一些dummy请求来强制走到最后一步，但不发订单
-
-  * 可以牺牲一些精度。
-
-    * 另外，pow有些时候[会很慢](https://entropymine.com/imageworsener/slowpow/)，主要是base接近1.0的时候：pow(≈1.0, 1.4), pow(≈1.0, 1.5)
-
-  * 如何测试耗时：搭建个测试链路，这个是最准的
-
-  * 其他
-
-    * inline语义逐渐发生变化：表示可以有多份定义 Because the meaning of the keyword inline for functions came to mean "multiple definitions are permitted" rather than "inlining is preferred", that meaning was extended to variables.
-
-## [P. McKenney, M. Michael & M. Wong “Is Parallel Programming still hard? PART 1 of 2”](youtube.com/watch?v=YM8Xy6oKVQg&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=22)
-
-* triangle: productivity vs performance vs generality
-* Work Partitioning: greatly ↑performance, ↓productivity (更多complexity导致更难理解和debug)
-* ParallelAccessControl: ↓performance (比如：线程间同步的开销)
-* ResourcePartitioningAndReplication: ↓generality。数据冗余：disks、NUMA、CPU、GPU、cache lines。这冗余的形式往往和具体的领域强相关
-* InteractingWithHardware: ↓productivity，尤其是有portable要求时
-* 影响cpu的一些因素
-
-  * mispredicted branch
-  * memory reference？
-  * RMW atomic
-  * memory barrier, aka fence. memory ordering
-  * cache miss
-  * I/O operation
-  * ![image-20230228203815434](cppcon/image-20230228203815434.png)
-* 一些优化及对应缺陷
-
-  * big cacheline: 导致false sharing，解决办法是alignment
-  * prefetching: 在拿line1时，顺便把line2拿了。又回到了big cacheline
-  * store buffer: 将改动缓存起来，等cache来了再写进去。会导致mis-ordering
-* 一个例子及其分析：SingleProducerSingleComsumer。减少cache line bouncing
-
-  * ```c++
-    // lock使得其是串行的
-    // lock存在cache line bouncing
-    // lock的获取需要RMW或者fence
-    // handoff per second 4.3M
-    class SingleLock{
-      T* buffer_[M];
-      uint64_t head_{0};
-    	uint64_t tail_{0};
-      mutex lock_;
-      bool TryEnq(T*) {
-        lock_guard g{lock_};
-        ...
-      }
-      T* TryDeq() {
-        lock_guard g{lock_};
-        ...
-      }
-    };
-    
-    // atomic是并行的，开销比lock小
-    // 依然有cache line bouncing: head、tail被不用的线程读写
-    // handoff per second 29.4M
-    class Lamport1983{
-      T* buffer_[M];
-      atomic<uint64_t> head_{0}; // no lock, atomic instead of
-      atomic<uint64_t> tail_{0};
-      bool TryEnq(T*) {
-    		uint64_t t = tail_.load(mo_rlx);
-        if (head_.load(mo_acq) + M == t) ...;
-        tail_.store(t+1, mo_rel); ...;
-      }
-      T* TryDeq() {
-    		uint64_t h = head_.load(mo_rlx);
-        if (tail_.load(mo_acq) == h) ...;
-        head_.store(h+1, mo_rel); ...;
-      }
-    };
-    // 将buffer改为atomic后，TryEnq和TyeDeq减少了cache line bouncing的问题：
-    //   head_, tail_ 只会读其中的一个，不会两个都读
-    // handoff per second: without alignment 27.0M
-    // handoff per second: 58.8M
-    class Giacomoni2008{
-      atomic<T*> buffer_[M]; // this is atomic, and head,tail is not
-      ALIGN_TO_AVOID_FALSE_SHARING size_t head_{0};
-      ALIGN_TO_AVOID_FALSE_SHARING size_t tail_{0};
-      bool TryEnq(T*) {
-    		if (buffer_[tail_].load(mo_acq)) {return false;}
-        buffer_[tail_].store(p,mo_real);
-        tail_ = NEXT(t_); return true;
-      }
-      T* TryDeq() {
-    		T *p = buffer_[head_].load(mo_acq);
-        if (!p) return nullptr;
-        buffer_[head_].store(nullptr, mo_rel);
-        head_ = NEXT(head_); return p;
-      }
-    };
-    
-    // Blocking版本：使用condition variable
-    // 对于使用condition variable的版本，性能偏差。其中一个可优化的细节是
-    // 使用3个状态的Stat: Full, Empty, Blocked，只有Blocked时才需要进行wake操作
-    ```
-
 ## [Victor Zverovich “A modern formatting library for C++”](youtube.com/watch?v=ptba_AqFYCM&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=26)
 
 * 如何打印map。细节接口后续再了解 https://godbolt.org/z/9KT9j6h1b
-
-## [Allan Deutsch “Esoteric Data Structures and Where to Find Them”](youtube.com/watch?v=-8UZhDjgeZU&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=29)——一些数据结构
-
-* slot map。找到个[github](https://github.com/SergeyMakeev/slot_map)
-  * slot {index, generation} -> data {}, freelist
-
-* bloom filter：m-bit长度，e可接受误差，k-hash函数个数，n元素个数
-  * 误差$m = -1.44n * log_2(\epsilon); k = -log_2(\epsilon)$。即$m,k \propto log\epsilon$
-  * TODO——bloom不支持删除，布谷？
-
-* Hash pointer: 存pointer时还存了对象的hash，确保hash是否有变过。好像是区块链里会用
-* 顺便提个HyperLogLog，[参考](https://www.yuque.com/abser/aboutme/nfx0a4)。用来估算总量。误差$1.04/\sqrt{m}$
-  * 原理：hash足够均匀时，可以将二进制的0、1中，最高位1出现的位置视作伯努利过程。可以根据这个位置，反推存了多少个元素
-  * 为了减少波动，会按bit位进行分桶，并取调和平均
-
-## [Michael Park “Enhanced Support for Value Semantics in C++17”](https://www.youtube.com/watch?v=LmiDF2YheAM&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=30)
-
-* | value semantics      | optional<T>                                       | variant<Ts...> | any   |
-  | -------------------- | ------------------------------------------------- | -------------- | ----- |
-  | reference semantics  | T*                                                | AbstractBase*  | void* |
-  | # of possible states | \|T\| + 1, <br />或者\|T\|？比如strol所有值都合法 | (... +\|Ts\|)  | 无限  |
-
-  
-
-* optional
-
-  * Magic number: 0、-1、npos。
-
-    * 需要从值域中偷一个数，但不一定可以，比如strol都是合法值
-
-    * 不在api中，需要人工校验
-
-    * ```C++
-      pid_t pid = fork();
-      if (pid == 0) { // I'm child
-        // ...
-      } else {  // I'm parent: pid is child
-        // ...
-        kill(pid); // fork失败时会返回-1, kill(-1)会删除几乎所有进程，boom
-      }
-      ```
-
-  * 使用场景：返回值、arg、成员变量
-
-  * careful: nullopt_t 比任何T都小。最好不要进行optional<T>和T的比较。
-
-  * ```c++
-    optional<int> Car::get_speed() const; // 如果仪表失灵，则返回nullopt
-    bool Car::can_accelerate () const {return get_speed() < MAX_SPEED;} // 仪表失灵后可无限加速
-    ```
-
-* Variant——type-safe union
-
-  * c++11：MPark.Variant
-  * valueless_by_exception最好设个默认值，避免variant处于这个状态
-
-* any——type-safe void*。注意，这里是value语义，即deep copy
-
-  * any_cast<T>会导致有临时对象，最好用ref，即any_cast<T&>，或者用指针，即any_cast<T>(&a)
-
-## [Fedor Pikus “C++ atomics, from basic to advanced. What do they really do?”](youtube.com/watch?v=ZQFzMfHIxng&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=31)
-
-* 哪些类型可以作为atomic：trivially copyable, i.e., memcpy
-* x = x+1不是atomic的，x+=1是atomic的
-* 一个atomic类型是不是lock free的取决于platform和run-time
-  * 可以用`constexpr is_always_lock_free`判断compile time的
-  * 剩下的有些取决于runtime，主要是alignment原因
-
-* atomic可能比mutex慢的原因
-  * atomic是share的，主要是读。（？mutex为啥没这个问题）
-  * 可能有false sharing的问题
-
-* compare_exchange_weak/strong——spuriously fail
-  * 在硬件层会有锁。获取锁在某些平台开销比较大，weak允许拿锁失败，即便`expect == *this`，即spuriously fail
-  * Atomic variable as gateways to memory access
-    * For acquiring exclusive access: 读到的其他线程提供的数据必须准备完毕，不能是中间状态
-    * for releasing into shared access：自己准备的数据必须完毕，不能是中间状态
-
-  * 一定要把memory order写出来：performance + 可读性
-  * when to use atomic instead of lock
-    * performance (measure)
-    * difficult or expensive to implement with locks(list, trees)
-    * drawbacks of locks are important(deadlocks, priority conflicts, latency prombelms)
 
 ## [Fedor Pikus “Read, Copy, Update, then what? RCU for non-kernel programmers”](youtube.com/watch?v=rxQ5K9lo034&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=75)
 
@@ -676,8 +817,8 @@
     }
   }
   // 顺序
-  remove_reference_t<remove_const_t<onst int&>; // const int
-  remove_const_t<remove_reference_t<onst int&>; // int
+  remove_reference_t<remove_const_t<const int&>; // const int
+  remove_const_t<remove_reference_t<const int&>; // int
   // 考虑value category  23:39
   is_copy_assignable_t<int>; // true
   is_assignable_t<int, int>; // false, 42 = 42
@@ -715,16 +856,10 @@
     }
   }
   ```
-  
-* 
-
-## [Arthur O'Dwyer “dynamic_cast From Scratch”](youtube.com/watch?v=QzJL-8WbpuU&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=45)
-
-* dynamic_cast的一个实现。可以用来复习c++的对象存储方式
 
 ## [Ansel Sermersheim “Multithreading is the answer. What is the question?](youtube.com/watch?v=GNw3RXr-VJk&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=48)
 
-* 提到了一个库[CopperSpice](https://www.copperspice.com/about.html)，不知道是否有用，可以留意下。好像后面的cppcon和cppnew都会再提及
+* 提到了一个库[CopperSpice](https://www.copperspice.com/about.html)，不知道是否有用，可以留意下
 
 * race condition: a resource is accessed by multiple threads simultaneously, and at least one is a write
 
@@ -791,7 +926,7 @@
 
   * 写很直观，类似compare_exchange_weak，主要是什么时候去删节点：
 
-    * ![image-20230315210354109](./cppcon/image-20230315210354109.png)
+    * ![image-20230315210354109](./image-20230315210354109.png)
 
   * ```c++
     struct zombie_list_node {
@@ -911,105 +1046,14 @@
 * Density, Variation——维度补充下
   * D+V  benchmark在高Utilization、无多线程Contention时: globle > Multipool > multipool<Mono> > Monotonic
   * Locality: 如果多个线程，不断地从一个线程pop并push到另一个线程，会导致diffusion，即不同线程的memory交织在一起，cache不友好、且会出现false sharing。如果缺少local分配器时，会出现这种情况
-    * ![image-20230322215512142](./cppcon/diffusion.png)
+    * ![image-20230322215512142](./diffusion.png)
     * 这个和fragement不一样，内存碎片是内存散落在各处，无法有效利用
-    * ![image-20230322215720789](/Users/jeashtower/Desktop/myFiles/NoteBooks/C++/cppcon/image-20230322215720789.png)
+    * ![image-20230322215720789](./image-20230322215720789.png)
     * 解决办法是使用thread local的对象池。另外，可能要考虑数据copy，避免slice（例子里是list）导致需要访问的内存分在在各处
 
-## [John Regehr “Undefined Behavior in 2017](youtube.com/watch?v=v1COuU2vU_w&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=77)
 
-* Somebody once told me that in basketball you can't hold the ball and run. I got a basketball and tried it and it worked just fine. He obviously didn't understand basketball.——一个joke
 
-* ub可能现在没问题，但是随着compiler、compiler version、optimization level、platform改变而暴露出来
 
-* ub时，程序可能当场就挂、或者跑到后面再挂、甚至代码语义变更
-
-* ```c++
-  // debug或compiler优化时，ub会导致程序语义变更。下面的例子用gcc -O2进行编译
-  
-  // 由于printf在p为null时是ub。所以compiler会假定p不为空，会优化掉if(p)
-  void foo(char *p) {
-      // printf("%s\n",p); debug时开/关这块代码
-     if (p) { *p=5;}
-  }
-  // p、q中任意一个指针为null，会导致ub。因为assemble代码只有一行，优化掉了if(!q)的判断。30:55
-  void foo(int *p, int *q, size_t n) {
-    memcpy(p,q,n); // jmp memcpy
-    // 被优化掉了，因为它假定p、q如果为null时，memcpy会挂，即便n为0。
-    // 可能的场景：for循环最后一次loop
-    if (!q) {abort();} 
-  }
-  ```
-
-## [Scott Schurr “Type Punning in C++17: Avoiding Pun-defined Behavior”](youtube.com/watch?v=sCjZuvtJd-k&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=79)
-
-* ```c++
-  // 使用invalid pointer是ub
-  // 使用uintptr_t来接指针, 其提供了**足够大**的类型来接p
-  // 但是我们应该用指针p来进行加减，而不是ip。因为后者不保证有valid pointer——不过大部分情况下都没问题
-  auto ip = reinterpret_cast<uintptr_t> (p);
-  ```
-
-* 只能用`char*/unsigned char*`或者`std::byte`（推荐后者）来访问对象bit
-
-* 访问union的非active对象在c++17里是ub——在c里不是
-
-## [Vinnie Falco “Make Classes Great Again! (Using Concepts for Customization Points)”](https://www.youtube.com/watch?v=WsUnnYEKPnI&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=87)
-
-* all problem in computer science can be solved by another level of indirection —— David Wheeler
-
-* ```c++
-  struct response {
-    int version;
-    int status;
-    string reason;
-    map<string, string> fields;
-    string body;
-  };
-  // 1. body:如何自定义allocator，并且不限于string。模板+特化
-  template <class Body> struct response {
-    // ...
-    Body::value_type body; // 为了存储数据引入了一个类对象，如果是空body，这里有存储开销，需优化
-    void write(ostream& os, response<Body> const&msg) {
-      write_head(os, msg);
-      Body::write(os, msg.body);
-    }
-  };
-  struct string_body { // xx_body, or template
-    using value_type = string;
-    static void write(ostream& os, string const& body);
-  };
-  // 2. 如何在避免空body时的存储开销：继承
-  template <class Body> struct response : private Body::value_type { // 空基类优化
-    typename Body::value_type &body() {return *this;} // ref
-  };
-  template <class Body> struct response {
-    void write(ostream& os, response<Body> const&msg) {
-      write_head(os, msg);
-      Body::write(os, msg.body());
-    }
-  };
-  // 3. 接口优化，对类型进行限制: 有value_type，有write函数
-  template <class B, class = void>
-    struct is_body : false_type{};
-  template <class B<
-    struct is_body<B, void_t<
-      typename B::value_type,
-  		decltype(
-        B::write(
-          declval<ostream&>(),
-          declval<typename B::value_type const&>()))
-  >> : true_type{}; // or use enable_if
-  // 4. 如何让body allocator aware，并支持传参
-  template<class T, class Allocator = allocator<T>>
-    struct vector_body {/*可能需要传参，即无默认构造函数*/};
-  template<class Body> 
-    struct message<false, Body> {
-      template<class... Args>
-        explicit message(Args&&... args) :body(forward<Args>(args)...){}
-    };
-  // 5. Field也类似。顺带将reason存到了Field中。对外接口是reason，内部调用get_reson，不暴露给外界(protect)
-  ```
 
 ## [Hartmut Kaiser “The Asynchronous C++ Parallel Programming Model”](youtube.com/watch?v=js-e8xAMd1s&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=89)
 
@@ -1047,9 +1091,9 @@
 
 * 一个lua的简介
 
-## [Matt Kulukundis “Designing a Fast, Efficient, Cache-friendly Hash Table, Step by Step”](youtube.com/watch?v=ncHmEUmJZf4&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=104)
+## [Matt Kulukundis “Designing a Fast, Efficient, Cache-friendly Hash Table, Step by Step”](https://www.youtube.com/watch?v=ncHmEUmJZf4&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=105)
 
-* ![image-20230404221224754](./cppcon/image-20230404221224754.png)
+* ![image-20230404221224754](./image-20230404221224754.png)
 
 * std基于拉链法实现，但为了便于O(N)遍历，会存下个bucket的指针，并且[x]指向的是上一个元素
 
@@ -1063,18 +1107,19 @@
 
   * 如果从拉链改为probing：cache友好。不过有了tomb之后，元素的删除会是个问题，一直留着可能导致size很小，但是capacity很大。另外，需要两个特殊值：tomb+sentinel
 
-    ![image-20230404224018554](./cppcon/image-20230404224018554.png)
+    ![image-20230404224018554](./image-20230404224018554.png)
 
 * Cache 友好：——flat_hash_set
 
   * 为了应对sentinel和empty这两个特殊的hash，不需要把64位hash都读进来。可以分成两部分57+7，这样用一个控制位bit来表示sentinel和empty。可以在一个cache line中塞进更多信息：之前是直接读v进行比较，现在是先读个小的ctrl_bit。如果是find-miss情况下，优势会比较明显
   * 数据改为两个并行存储的array：vector<V> 和vector<hash_2>（1+7bit），并用hash_1作为下标——1维数组在考虑内容的bit表示时，就是个二维bit数组
   * 49:10 提到未实现的想法：因为特殊的hash其实只要1个bit，所以可以做下聚合，将多个node的hash放到一块儿，做些排列，刚好能凑到64B
-  * ![image-20230405131250670](./cppcon/image-20230405131250670.png)
+  * ![image-20230420110208362](./image-20230420110208362.png)
+  * ![image-20230405131250670](./image-20230405131250670.png)
   * 这里可以用assemble进行并行化加速。简单来说，通过set_epi初始化一组要查找的值，然后用cmpeq_epi并行化比较，最后用movemask_epi将mask压缩进若干bit里
-  * ![image-20230405133441727](./cppcon/image-20230405133441727.png)
+  * ![image-20230405133441727](./image-20230405133441727.png)
   * predict加速
-  * ![image-20230405133815897](/Users/jeashtower/Desktop/myFiles/NoteBooks/C++/cppcon/image-20230405133815897.png)
+  * ![image-20230405133815897](./image-20230405133815897.png)
 
 * 
 
@@ -1125,21 +1170,241 @@
   * 为了避免波动，分组+加权平均。将hash分为两截，前半截做数组下标，后半截计算leading zeros
   * 减少极端值的影响，加权平均改为调和平均
 
+## [Tony Van Eerd “An Interesting Lock-free Queue - Part 2 of N”](youtube.com/watch?v=HP2InVqgBFM&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=114)
+
+* ```c++
+  using Val = int;
+  static constexpr Val kEmpty = 0;
+  struct GenI {
+    Val data;
+    int generation;
+  };
+  // 左边的gen比右边的大，当前gen的val：0一定在左边(pop后才会有0，非零是push后才有)
+  // 0 0 y x x
+  // 5 5 5 4 4
+  class Queue{
+    atomic<GenI> buffer[SIZE];
+    laxtomic<GenI> headish; // hint，并非代表head的确切值，所以是relaxed
+    laxtomic<GenI> tailish; // hint，并非代表tail的确切值，所以是relaxed
+  };
+  
+  bool is_zero(GenI entry, int gen) {
+    return entry.data == kEmpty && entry.gen == gen;
+  }
+  void incr(GenI &tmp, int &gen) { // wrap
+    if (++tmp == SIZE) {
+      tmp = 0;
+      ++gen;
+    }
+  }
+  
+  bool push(Val v) { // 1:04:44
+    int pre_gen = 0;
+    GenI entry;
+    GenI tmp;
+    GenI old = tmp = tail;  // laxtomic load
+    do {
+      entry = buffer[tmp].load(relaxed);
+      // compare with gen
+      // 0 |0| y x x
+      // 5  5  5 4 4
+      while (!is_zero(entry, tmp.gen)) {
+        if (entry.gen < pre_gen) {
+          //   p  e
+          // x x |x| x x
+          // 5 5 |4| 4 4
+          while (!tail.CAS(old, tmp) && old < tmp) {}  // update tail
+          return false; // full
+        }
+        
+        tmp.incr();
+        if (entry.data) {
+          pre_gen = entry.gen;
+        }
+      }
+      GenI newg{val, tmp.gen};
+      // in case of other thread updated tail
+    } while(!buffer[tmp].CAS(entry, newg, release));
+    tmp.incr(); //go to next
+    // update if no one else has gone as far
+    while(!tail.CAS(old, tmp) && old < tmp) {}
+    return true;
+  }
+  
+  Val pop(){
+    int pre_gen = 0;
+    GenI entry;
+    GenI tmp;
+    GenI old = tmp = tail;  // laxtomic load
+    do {
+      entry = buffer[tmp].load(relaxed);
+      while (entry.is_data(tmp.gen)) {
+        if (entry.gen == pre_gen) {
+          while (!head.CAS(old, tmp) && old < tmp) { }
+          return 0; // empty
+        } else {
+          tmp.incr();
+        }
+      }
+      GenI zero{kEmpty, tmp.gen + 1};
+    } while(!buffer[tmp].CAS(entry, zero, acquire));
+    tmp.incr(); //go to next
+    // update if no one else has gone as far
+    while(!head.CAS(old, tmp) && old < tmp) {}
+    return entry.val;
+  }
+  ```
 
 
 
+## [Pablo Halpern “Allocators: The Good Parts”](youtube.com/watch?v=v3dz-AKOVL8&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=121)
+
+* 尽量使用`polymorphic_allocator<byte>`19:36
+
+* ```c++
+  // 使用匿名union来避免初始化
+  template <typename T>
+  struct node: node_base<T> {
+    union {
+      T value_;
+    }
+  };
+  
+  template<typename Tp>  // 47:05
+  template<typename ...Args>
+  auto slist<Tp>::emplace(iterator i, Args&& ..args) -> typename slist<Tp>::iterator{
+    auto *new_node = static_cast<node*>(allocator_.resoource()->allocate(sizeof(node), alignof(node)));
+    allocator_.construct(addressof(new_node->value_), forward<Args>(args)...);
+    // ...
+  }
+  
+  // 一些总结58:00
+  ```
 
 
 
-## 2022
+## [Klaus Iglberger “Free Your Functions!”](youtube.com/watch?v=WLDT1lDOsb4&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=124)
 
-* [C++ in Constrained Environments](https://www.youtube.com/watch?v=2BuJjaGuInI&list=PLHTh1InhhwT6c2JNtUiJkaH8YRqzhU7Ag&index=145)
-  * language is just a part of developer's toolbox
-  * All problems in computer science can be solved by another level of indirection, except for the problem of too many layers of indirection—— [Butler Lampson](https://en.wikipedia.org/wiki/Butler_Lampson)。https://en.wikipedia.org/wiki/Indirection
-  * variant 比union好：express its intent
-  * error code vs exception
-    * error code
-      * a failure is normal and expected
-      * an immediate caller can reasonably be expected to handle the failure
-      * an error happens in one of a set of parallel tasks and we need to know which task failed
-* [Can C++ be 10x Simpler & Safer? ](https://www.youtube.com/watch?v=ELeZAKCN4tY)——cppfront
+* SOLID
+  * Single responsiblity principle
+  * Open-close principle
+  * Liskov substitution principle——子类能替换基类。子类能扩展基类，但是不能改变基类原有的功能
+  * Interface Segreation principle——接口不要糅在一起，避免臃肿
+  * Dependency Inversion principle——高层次不依赖底层实现细节
+* static member function ->namepsaced free function。根据情况逐渐调整。如果多个地方都用到了，就弄成free，不然就static member function。后者感觉对IDE补全之类的好些
+* 有以下好处
+  * 更好的封装——成员函数的this能访问所有数据。另外，自由函数意味着能挪到.cpp里
+  * 更解耦、易于测试（#define private public）
+  * 更易于扩展、复用
+  * 更好的性能——为了调用obj.func，我们必须构造个obj
+* 例子
+  * std::begin，std::real 
+
+## [Louis Brandy “Curiously Recurring C++ Bugs at Facebook”](youtube.com/watch?v=lkgszkPnV8g&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=125)
+
+* shared_ptr is not thread-safe. 24:00
+
+  * [std::shared_ptr thread safety](https://stackoverflow.com/questions/14482830/stdshared-ptr-thread-safety?noredirect=1&lq=1) stackoverflow
+
+* <img src="./image-20230417213233644.png" alt="image-20230417213233644" style="zoom:50%;" />
+
+* ```c++
+  // 不在shared_ptr保护范围
+  auto& ref = *return_a_shared_ptr();
+  ref.boom();
+  
+  // 声明了一个变量foo。之所以会支持这种声明，是为了便于解析 (*x)[2]  or  void (*foo)()
+  // almost always auto可以避免
+  // 如果一个xx可以是declaration or definition，那它是declaration 36:00
+  string (foo); // 临时变量foo
+  string ("123"); // 匿名变量
+  unique_lock<mutex> (mutex_); // shadowing, 不是成员变量mutex_，而是一个局部变量。
+  
+  ```
+
+## [Chandler Carruth “Going Nowhere Faster”](youtube.com/watch?v=2EWejmkKlxs&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=126)
+
+* ```c++
+  
+  static void BM_CppCon2017(benchmark::State &s) {
+    auto const bytes = (1 << s.range(0)) * 2 / 3;
+    int32_t const count = bytes / sizeof(int) / 2;
+  
+    auto rd = std::random_device{};
+    auto dist = std::uniform_int_distribution<int32_t>(
+        numeric_limits<int32_t>::min(), numeric_limits<int32_t>::max());
+    auto rd1 = std::random_device{};
+    auto dist1 = std::uniform_int_distribution<int32_t>(0, count);
+  
+    auto v = std::vector<int>(count);
+    for (auto &i : v) {
+      i = dist(rd);
+    }
+    auto v2 = std::vector<int>(count);
+    for (auto &i : v2) {
+      i = dist1(rd1);
+    }
+  
+    for (auto _ : s) {
+      int64_t sum = 0;
+      for (int i : v2) {
+        sum += v[i];
+      }
+      benchmark::DoNotOptimize(sum);
+    }
+    s.SetBytesProcessed(int64_t(s.iterations()) * bytes);
+    s.SetLabel(std::to_string(bytes / 1024) + " KB");
+  }
+  BENCHMARK(BM_CppCon2017)->DenseRange(13, 26)->ReportAggregatesOnly(true);
+  // BM_CppCon2017/13        499 ns          499 ns      1402078 bytes_per_second=10.1831G/s 5 KB
+  // BM_CppCon2017/14        992 ns          992 ns       704947 bytes_per_second=10.2564G/s 10 KB
+  
+  //// 设置最小运行时间
+  // ./cache_bench --benchmark_filter=BM_CppCon2017/16 --benchmark_min_time=2s
+  //// 发现对于case16，25.24%fronted cycles idle，即cpu有空闲。而case15只有2.75% 18:22
+  // perf stat ./cache_bench --benchmark_filter=BM_CppCon2017/16 --benchmark_min_time=2s
+  //// 下钻分析L1-icache, L1-dcache
+  // perf stat -e L1-icache-loads,L1-icache-load-misses,L1-dcache-loads,L1-dcache-load-misses ...
+  //// 
+  
+  ```
+
+  | case | fronted cycles idle | L1-dcache-load-misses | Thru/kb       |
+  | ---- | ------------------- | --------------------- | ------------- |
+  | 15   | 2.75%               | 0.01%                 | 18.3GB/s,32kb |
+  | 16   | 25.24%              | 0.04%                 | 17.2GB/s,64k  |
+
+* cpu会做预测
+
+* ![image-20230423200139323](./image-20230423200139323.png)
+
+## [Louis Dionne “Runtime Polymorphism: Back to the Basics”Louis Dionne “Runtime Polymorphism: Back to the Basics”](https://www.youtube.com/watch?v=gVGtNFg4ay0&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=137)
+
+* ```c++
+  // 小对象优化 18:14
+  struct Vehicle {
+    union {
+      void *ptr_;
+      std::aligned_storage_t<32> buffer;
+    };
+    bool on_heap_ = false;
+  
+    template <typename Any>
+    Vehicle(Any) {
+      if constexpr (sizeof(Any) > 32) {
+        ptr_     = new Any();
+        on_heap_ = true;
+      } else {
+        new (&buffer) Any();
+        on_heap_ = false;
+      }
+    }
+  
+  };
+  
+  ```
+
+* 如果存储的数据都是相同的，从heap改为local存储数据并不一定就会快。43:00
+
+  * 有可能是cacheline。改为local后，容易cache miss
+  * intel platform：有reordering。non-local存储虽然有extra indirection，但是如果这个地址已经resolved，其实没有什么开销
