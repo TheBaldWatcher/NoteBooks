@@ -149,6 +149,33 @@ https://abseil.io/resources/swe-book
     * learn to drop balls：关注top20%，其他80%要允许drop。如果某件80%中的事真的重要，它会想办法回到top20%的
     * protecting your energy：vacation、weekends、breaks during the day(per 90m)
 
+## Measuring Engineering Productivity
+
+* 例子：readability
+  * Is It Even Worth Measuring?
+    * 提问
+      * 预期的结果是什么?why？
+      * 需要采取何种行动？——当数据支持/不支持你的预期时
+      * Who&When to take action on the result？——如果没有执行者，measuring就没有意义。执行者是否认可这个结论、相信这个数据，主观感受是怎么样的。
+    * 我们知道了，对于某项改动
+      * 是否afford
+      * 是否受其他因素影响：决策者不认可self-report、易被个别情况动摇等
+      * 无论measure与否，都会进行/不进行，那measure就没有多少意义
+      * metrics不准确。这时候会有主观选择性：支持预期时，忽略准确性问题；不支持预期时，拿准确性说事儿
+  * 如何指定metrics——GSM，goal、signal、metrics
+    * 以goal为导向制定metrics，而不是基于现在手上有什么metrics
+    * 对metrics达成公示，各方认账
+    * 界定哪些是可测的，哪些是不可测的
+  * goal
+    * 常见的问题是，主要聚焦在某些方向，忘了考虑trade off
+    * Quants
+      * **Qu**ality of code：代码质量
+      * **A**ttention from engineers：专注性，context switch频率
+      * I**n**tellectual complexity：心智、工作复杂度
+      * **T**empo and velocity：完成的速度
+      * **S**atisfaction：工程师对任务的满意、认可程度
+  * signal：达成goal时的一些信号
+  * metrics：signal的proxy，通过这些来量化signal
 
 ## live_at_head
 

@@ -82,3 +82,20 @@
 * 杂项
 
   * TTL：TimeToLive没经过一次路由就减少1，一般初始值为64
+
+
+
+
+
+
+
+## 抓包命令
+
+```shell
+# 轮转抓包，轮转1000个文件，每个最大10M）:
+tcpdump -i any dst 11.154.151.192 or host 11.154.150.60 -w cos.pcap -C 10 -W 1000
+```
+
+[**tcpdump抓syn，ack，fin，rst包**](https://blog.51cto.com/babyhe/1395489)
+
+`tcpdump -ni any port 9001 and 'tcp[13] & 3 != 0 ' -s0  -w syn_fin.cap -vvv` 

@@ -72,8 +72,12 @@
 
 # 项目
 
+* git
+  * 光追
+    * **[remda](https://github.com/7sDream/remda)**
+    * https://raytracing.github.io/
+  
 * game
-
   * [Packaging a game for Windows, Mac, and Linux with Rust.](https://agmprojects.com/blog/packaging-a-game-for-windows-mac-and-linux-with-rust)
   * <font color=red> rust写的游戏</font>:https://itch.io/games/made-with-rust
   * <font color=red>roguelik 教程</font>[git](https://aimlesslygoingforward.com/blog/2019/02/09/writing-a-rust-roguelike-for-the-desktop-and-the-web/)
@@ -138,3 +142,4 @@
 # 资料
 
 * [深入浅出Rust异步编程之Tokio](https://mp.weixin.qq.com/s/FzJAV8Ah8DqDeNSee9WnPA)
+* **[rust-by-example-cn](https://github.com/rust-lang-cn/rust-by-example-cn)** 

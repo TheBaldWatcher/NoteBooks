@@ -2,6 +2,54 @@
 
 
 
+# CR
+
+* [HowToDoACodeReview](https://google.github.io/eng-practices/review/reviewer/)
+* [WhatToLookForInACodeReview](https://google.github.io/eng-practices/review/reviewer/looking-for.html)
+* 代码格式
+  * 头文件保护、自包含不正确
+  * 代码排版混乱，缩进不一致等影响阅读的
+  * 文件、类型、变量等命名不规范不统一
+  * 代码圈复杂度过高，缩进层次过深，多重try catch嵌套等
+  * 文件编码不正确， 中文乱码的 (-2)
+  * 函数过长，圈复杂度过高，影响理解的 （-2）
+  * 文件、函数、方法命名没有明确意义的（如common, util, manager等) （-1）
+  * 文件、函数过长，影响可读性的 （-2）
+* 代码错误
+  * 内存泄漏，有new，没有对应的delete等
+  * 资源泄漏，文件、连接未关闭等
+  * 有空指针、野指针、下标越界，内存溢出等其他C++可能出现的问题的
+  * 代码分支考虑不周，异常分支或边界情况处理不正确的
+  * 对C++语言、标准库或第三方库的理解有错误，导致bug的 
+  * 存在安全风险，未做保护的 （-2）
+  * 并发读写数据未做保护，导致有线程安全问题的 （-3）
+* 代码习惯
+  * 输入参数+输出参数超过6个的
+  * 对外接口没有注释的
+  * 写死ip、密码、域名、配置项的代码，测试代码除外
+  * 变量未初始化的
+  * 除0、1之外的魔数
+  * 过多的代码冗余，频繁出现相似的疑似copy的代码
+  * 有许多废弃代码、无用代码及死分支的
+  * 大量没有必要地使用宏的 （-2）
+  * 方法、函数入参个数超过8个的 （-2）
+* 其他
+  * 出现错误未立即返回的 （-1）
+  * 代码结构不合理， 不相关的代码放在同一个函数、同一个类、同一个文件或同一个目录的 （-2）
+  * 代码不放到名字空间，或名字空间使用不规范的 （-2）
+  * 注释不规范，降低代码可读性的 （-2）
+  * 缺少单元测试，对于明显可测试的public方法不进行单元测试的 （-2）
+  * 缺少README.md文档，对于项目功能和原理介绍都没有的 （-3）
+* 加分项
+  * 代码结构清晰，层次合理，没有循环依赖，可读性好
+  * 有单元测试，单元测试质量较高且覆盖度较高
+  * 在代码实现上注重性能，使用精巧高效的算法、汇编、GPU编程等技术来提升性能并取得良好效果的
+  * 代码注释规范、整洁、齐全，明显提升代码可读性的 （+2）
+  * 所有函数都是小函数，圈复杂度小于8， 代码行数均少于40行，嵌套深度均少于3层 （+3）
+  * 集中合理的配置/错误码/常量管理 (+2)
+  * 代码实现符合最佳实践，遵守C++最新规范，明显提升代码可读性的 （+2)
+  * 文档齐全，接入指引、特性列表、示例完整可用，明显提升研发效率的 （+3）
+
 # gdb
 
 * set print elements 0
@@ -411,6 +459,15 @@
 
 * 在线化的xmind：www.processon.com
 * [cmake修改vs设置](https://my.oschina.net/u/221947/blog/413652)。
+* 升级gcc12
+  - git clone --branch releases/gcc-12.2.0 https://github.com/gcc-mirror/gcc.git
+  - ./contrib/download_prerequisites
+  - ./configure --prefix=/usr/local/gcc-12.2.0 --enable-bootstrap --enable-languages=c,c++ --enable-threads=posix --enable-checking=release --enable-multilib --with-system-zlib --disable-multilib
+    - https://stackoverflow.com/questions/7412548/error-gnu-stubs-32-h-no-such-file-or-directory-while-compiling-nachos-source
+  - make -j48
+  - sudo -s
+  - make install
+  - /usr/local/gcc-12.2.0/bin/gcc --version
 
 # Shell
 
@@ -438,6 +495,46 @@
       * out-of-bounds太远，以至于落到了合法内存上，而非redzone
       * user-after-free：中间又有太多释放，导致隔离队列已被冲到
     * [也有个false pos的例外](https://github.com/google/sanitizers/wiki/AddressSanitizerContainerOverflow#false-positives), 不过太少见了。[D_FORTIFY_SOURCE](https://github.com/google/sanitizers/wiki/AddressSanitizer)
+  
+* ```bash
+  // .bazelrc
+  build --linkopt="-fsanitize=address"
+  build --copt="-fsanitize=address"
+  build --cxxopt="-fsanitize=address"
+  #build --linkopt="-static-libasan" 
+  
+  build --copt="-fno-stack-protector"
+  build --copt="-fno-var-tracking"
+  build --copt="-fno-omit-frame-pointer"
+  
+  # intall
+  yum install libasan
+  rpm -ql libasan
+  export LD_PRELOAD=/usr/lib64/libasan.so.5.0.0
+  set ASAN_OPTIONS=alloc_dealloc_mismatch=0
+  ```
+  
+* 如果在容易中报ptrace权限问题（目前只在开发机上出现，线上环境中未出现），添加 `--cap-add=SYS_PTRACE
+  docker run -itd --cap-add=SYS_PTRACE,SYS_ADMIN -v /root:/root --net=host --name cpp12 mirrors.tencent.com/todacc/trpc-cpp-gcc12:0.1.1 /bin/bash`
+
+* demo
+
+  ```c++
+  #include <iostream>
+  #include <vector>
+  
+  int main() {
+    char *x = (char *)malloc(10 * sizeof(char *));
+    free(x);
+    return x[5];
+    // std::vector<int> vec;
+    // vec.reserve(10);
+    // std::cout << vec[0];  // 对未初始化的内存进行访问
+    return 0;
+  }
+  ```
+
+* 
 
 # ThreadSanitizer
 
@@ -489,3 +586,38 @@ BENCHMARK(BM_StringCompare)
   * service：若干操作的集合（这些操作不是entity obj或value obj的自然组成部分）
   * Module: 注意不要分的太细，这样不够内聚。理解时需要串联多个module。
 
+
+
+
+
+## protobuf
+
+```c++
+//diff
+    {
+      MessageDifferencer differencer;
+      std::string diff_str;
+      differencer.ReportDifferencesToString(&diff_str);
+      differencer.set_float_comparison(MessageDifferencer::APPROXIMATE);
+      differencer.set_repeated_field_comparison(MessageDifferencer::AS_SET);
+      differencer.set_report_moves(false);
+      differencer.Compare(req, expect);
+      cerr << diff_str;
+    }
+```
+
+
+
+## docker
+
+Docker:`docker run -itd -v /root:/root --net=host --name trpc-compile-hongfendong mirrors.tencent.com/todacc/trpc-cpp-complie-qqnews-astra:0.1.2 /bin/bash`
+
+* `git config --global credential.helper store && git config --global url."http://".insteadOf https:// `
+* 插件: docker run -itd -v /root:/root --net=host --name chajian-hongfendong mirrors.tencent.com/todacc/trpc-cpp-nameapi:0.1.1 /bin/zsh
+
+## 荣誉墙
+
+* Logreplay 代码先锋3、7月
+* iread阅卷组
+* 2022Q3季度之星
+* ![2022年Q3季度02](./2022年Q3季度02.jpg)

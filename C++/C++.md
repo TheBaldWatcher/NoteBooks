@@ -1,37 +1,15 @@
 # 读书
 
-* [on the fly](https://changkun.de/modern-cpp/en-us/02-usability/index.html)
-
-  * ` if constexpr `
-
-  * extern template
-
-    * 这个和`if constexpr`结合可以用来写variadic template，可一不用写终结递归的特化（）
-    * 
-
-  * Variable parameter template expansion——避免写一个终结递归用的特化
-
-    * `if constexpr` 来中止递归
-
-    * initialize_list + lambda: 
-
-      ```c++
-      template<typename T, typename... Ts>
-      auto printf3(T value, Ts... args) {
-          std::cout << value << std::endl;
-          (void) std::initializer_list<T>{([&args] {	// void is for unused-warning
-              std::cout << args << std::endl;
-          }(), value)...};
-      }
-      ```
-
-    * 对于简单情况，还有fold expression。`x + ... = x + y + z + ...`
+* 一些c++17、20的例子，看上去还比较有趣  https://www.cppstories.com/2018/06/variant/
+* 查llcm-mca时找到的资料，好像是高性能计算的，瞅瞅https://en.algorithmica.org/hpc/profiling/
 
 
 
 https://www.codingninja.co.uk/best-programmers-quotes/
 
 c++blog https://brevzin.github.io/c++/2019/07/28/comparisons-cpp20/
+
+
 
 
 
@@ -67,7 +45,7 @@ cppcon视频：https://www.youtube.com/user/CppCon/playlists?reload=9
 * blog：
   * https://abcdabcd987.com/sharding/
 
-### [年付 $15 阅读全部 O'Reilly / safari 的书](https://www.douban.com/note/743690382/)。
+### ~~[年付 $15 阅读全部 O'Reilly / safari 的书](https://www.douban.com/note/743690382/)。~~
 
 # macro
 
@@ -117,6 +95,7 @@ cppcon视频：https://www.youtube.com/user/CppCon/playlists?reload=9
     * cv，using/unsigned、char类型没有问题。
     * 如何正确type tune：memcpy
     * Wstrict-aliasing=1，Wall的等级是3，有些会报不出来
+  * https://stackoverflow.com/questions/98650/what-is-the-strict-aliasing-rule/7005988#7005988
 # Hana
 
 * 视频https://www.youtube.com/watch?v=L2SktfaJPuU&list=PLHTh1InhhwT7esTl1bRitiizeEnksGU7J&index=24
@@ -217,7 +196,12 @@ hana::eval_if;
 
 
 
+# CRTP
 
+* https://zhuanlan.zhihu.com/p/137879448
+* 子类实例创建、析构计数
+* 多态链。即函数返回的是子类，这样可以调用子类方法
+* 多态的clone函数
 
 
 # 资料

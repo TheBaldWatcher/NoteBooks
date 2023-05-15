@@ -515,6 +515,64 @@
 
 * nm查看名字，objdump查看符号细节
 
+* C++静态链接符号冲突的几种处理方法
+
+  * allow-multiple-definition、objcopy --weaken
+
+    * 不建议，容易埋坑
+
+  * objcopy --localize-symbol(s)
+
+    * ```shell
+      readelf -a libB.o
+       Num:    Value          Size Type    Bind   Vis      Ndx Name
+           9: 0000000000000000    22 FUNC    GLOBAL DEFAULT    1 _Z7subfuncii
+      
+      objcopy --localize-symbol=_Z7subfuncii
+      # 对于c++，有mangling。可以先用readelf命令导出.a中所有mangling之后的名字，然后用c++filt命令把mangling之后的名字进行demangle，得到代码中的变量名字
+      ```
+
+  * objcopy --redefine-sym
+
+    * ```bash
+      # libA.cpp
+      int subfunc_c(int a, int b) { return a + b;}
+      int funcAA(int a, int b) { return subfunc_c(a, b);}
+      # libB.cpp
+      int subfunc_c(int a, int b);
+      int funcBB(int a, int b) { return subfunc_c(a, b); }
+      # libC.cpp
+      int subfunc_c(int a, int b) { return a - b; }
+      # main.cpp
+      int funcAA(int, int);
+      int funcBB(int, int);
+      int main() {
+          printf("%d,", funcAA(2, 1));
+          printf("%d\n", funcBB(2, 1));
+          return 0;
+      }
+      # g++ -c libA.cpp
+      # g++ -c libB.cpp
+      # g++ -c libC.cpp
+      # ar rvs libA.a libA.o
+      # ar rvs libB.a libB.o libC.o
+      # g++ main.cpp libA.a libB.a
+      # ./a.out
+      3,3  # 重定义未报错
+      # 1. 初始E,U,D都为空。
+      # 2. 对于传入的每个文件，判断是.o文件还是.a文件。如果是.o文件，扫描.o文件中的符号，全部添加到E集合中，根据每个符号是否定义，更新对应的未定义集合U和已定义集合D。扫描过程如果发现某个符号已经在已定义集合D中，报错符号重定义。如果是.a文件，.a文件也是由一系列.o文件组成。链接器扫描每个.o文件，判断该.o文件中是否有未定义集合U中需要的符号，如果有，把该.o的符号全部添加到E集合中，更新未定义集合U和已定义集合D，如果没有，直接跳过该.o文件，不会把该.o文件合并到可执行文件中。
+      # 3. 全部输入文件扫描完成后，如果未定义集合U不是空的，报错有未定义符号。
+      
+      
+      --redefine-sym old=new
+      Change the name of a symbol old, to new. This can be useful when one is trying link two things together for which you have no source, and there are name collisions.
+      --redefine-syms=filename
+      Apply --redefine-sym to each symbol pair "old new" listed in the file filename. filename is simply a flat file, with one symbol pair per line. Line comments may be introduced by the hash character. This option may be given more than once.
+      ```
+
+    * 
+
+
 ## [Arthur O'Dwyer “A Soupçon of SFINAE”](https://www.youtube.com/watch?v=ybaE9qlhHvw&list=PLHTh1InhhwT6bwIpRk0ZbCA0N2p1taxd6&index=113)
 
 * ```c++
