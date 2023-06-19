@@ -7,13 +7,14 @@
 # 随想
 
 * template 为了限定类型，所以有trait、enbale_if等机制
-* 除了类型，还得考虑ref，比如`T a;`如果T是ref就有问题；或者还得考虑const？
+* 除了类型，还得考虑ref，比如`T a;`如果T是ref就有问题；或者还得考虑const；考虑是否要decay（array、function）、考虑void
 
 # Part I: Basics
 
 ## Chapt1: function templates
 
-* ```c++
+* 
+```c++
   template <typename T1, typename T2>
   auto max(T1 a, T2 b); // c++17
   auto max(T1 a, T2 b) -> typename decay_t<decltype(true?a:b)>; // c++11, 这里不需要填b<a?, decay为了应对引用
@@ -32,7 +33,8 @@
 
 ## Chapt 2 class template
 
-* ```c++
+* 
+```c++
   // 别忘了，模板类里，该类参数可省略模板参数。建议省略，避免手写写错。
   // 另外，构造和析构这种只用到名字，而不是type的，只能写Stack
   // 模板类declare、define不能在function或block scope，只能在global/namespace中
@@ -68,7 +70,8 @@
 
 ## Chapt 3-5 Nontype template paramter/Variadic/Tricky
 
-* ```c++
+* 
+```c++
   // 可以是auto
   template<auto val>
   void func(){}
@@ -121,7 +124,8 @@
 
 * `forward`也会传递const
 
-* ```c++
+* 
+```c++
   // 构造函数的匹配: non-const Person会匹配到模板
   struct Person{
     Person(Person const&p) {}
@@ -138,14 +142,15 @@
     // 通过这个阻止compiler自动生成C(C const&)构造函数。
     // 顺带说下，C()这个默认构造函数在有模板时是不会自动生成的。12.3末尾的-脚注7也提到了这点
     C(C const volatile&) = delete;
-    template<typename U, typename = enable_if_t<!is_integral+v<U>>>
+    template<typename U, typename = enable_if_t<!is_integral_v<U>>>
     C(C<U> const&) {}
   };
   ```
 
 * value / ref
 
-* ```c++
+* 
+```c++
   // const的右值会匹配T&
   template<typename T>
   void outR(T&) {}
@@ -175,7 +180,8 @@
 
 * SFINAE
 
-  * ```c++
+  * 
+  ```c++
     // 只支持有t.size()的类型T。void是为了避免有用户重载了,操作符
     template<typename T>
     auto len(Tconst &t) -> decltype((void)(t.size()), T::size_type){}
@@ -183,7 +189,8 @@
 
 ## Chapter 11 GenericLib
 
-* ```c++
+* 
+  ```c++
   //// invoke用处
   // case1: 提供了统一的形式：mem-func不能用func(...)来调用，得是obj.func(...)
   // case2: 在wrapper中使用
@@ -247,8 +254,7 @@
 * 考虑到嵌套调用，函数的point of instantiation是在后方的最近点、variable的poi也是后方。class则符合直觉，在前方（也必须是在前方，因为函数可能用到了类信息，得保证在使用时可见）
 
 * two-phase instantiation中，第二步是ADL，所以有可能会报找不到
-
-  * ```c++
+   ```c++
     // 函数的POI
     template <typename T>
     void f1(T x) {
@@ -277,8 +283,7 @@
 * 编译优化：以string为例
 
   * 在头文件中通过extern抑制自动instantiation，并手动执行instantiation definition
-
-  * ```c++
+    ```c++
     // ===== t.hpp:
     template<typename T> void f() { }
     
@@ -293,7 +298,6 @@
 ## Chater15: Deduction
 
 * 一些case
-
 ```c++
 // case1
 template<typename T>
@@ -322,8 +326,7 @@ void f(pair<int, float> pif, pair<int, double> pid, pair<double, double> pdd) {
     * 默认参数、默认成员函数初始化
 
     * exception specification，即`noexcept(nonexistent(T()))`
-
-    * ```c++
+      ```c++
       // case 1
       template<typename T>
       struct Array {using iterator = T*;};
@@ -348,8 +351,7 @@ void f(pair<int, float> pif, pair<int, double> pid, pair<double, double> pdd) {
   * explicit function specification只能从左到右进行指定。
 
     * 所以不能deduce、需要手动指定的模板参数要放在开头
-
-    * ```c++
+      ```c++
       template<typename Out, typename In>
       Out convert(In p) { ... }
       
@@ -357,8 +359,7 @@ void f(pair<int, float> pif, pair<int, double> pid, pair<double, double> pdd) {
       ```
 
   * auto
-
-    * ```c++
+      ```c++
       // 成员类型的简写
       template<typename> struct PMClassT;
       template<typename C, typename MemberT> struct PMClassT<MemberT C::*> { using Type = C; };
@@ -371,8 +372,7 @@ void f(pair<int, float> pif, pair<int, double> pid, pair<double, double> pdd) {
       ```
 
   * 一些其他杂项
-
-    * ```c++
+     ```c++
       // recursive + auto
       auto f(int n) {
         if (n > 1) return n*f(n-1); // Error, type of f(n-1) unknown
@@ -389,46 +389,44 @@ void f(pair<int, float> pif, pair<int, double> pid, pair<double, double> pdd) {
       ```
 
   * deduction guide
-
-    * ```c++
-      // 可以和aggregate initialization结合
-      template<typename T> struct A{ T val; };
-      template<typename T> A(T) -> A<T>; // 不需要写出来，这个会implicit生成
-      A<int> a1{42}; // OK
-      // 另一个例子
-      template<typename... Ts> struct Tuple{
-        Tuple(Ts...);
-        // template<typename... Ts> Tuple(Ts...) -> Tuple<Ts...>;
-        Tuple(Tuple<Ts...> const&);
-        // template<typename... Ts> Tuple(Tuple<Ts...> const &) -> Tuple<Ts...>
-      }
-      
-      // 对于构造函数：implicit deduction guide
-      template<typename T> A(typename T) -> A<T>;
-      // case 1: implicit deduction guide——关闭。话说不是特别理解为啥要关闭
-      template<typename T> struct ValueArg { using Type = T; };
-      template<typename T> struct A{
-        using ArgType = typename ValueArg<T>::Type;
-        A(ArgType b) : a(b) {}
-      };
-      // 变成了template<typename> A(typename ValueArg<T>::type) -> S<T>;
-      // A x(12); 现在编译会报错了
-      
-      // case 2:对于右值T&&是关闭的，以避免非预期的匹配
-      template<typename T> struct Y {
-        Y(T const &);  // template<typename T> Y(T const&) -> Y<T>; #1
-        Y(T&&);  //  template<typename T> Y(T&&) -> Y<T>; #2
-      };
-      
-      string s;
-      Y y = s; // #2是better match。为了避免这种情况，T&&不会有implicit deduction guide
-      ```
+    ```c++
+    // 可以和aggregate initialization结合
+    template<typename T> struct A{ T val; };
+    template<typename T> A(T) -> A<T>; // 不需要写出来，这个会implicit生成
+    A<int> a1{42}; // OK
+    // 另一个例子
+    template<typename... Ts> struct Tuple{
+      Tuple(Ts...);
+      // template<typename... Ts> Tuple(Ts...) -> Tuple<Ts...>;
+      Tuple(Tuple<Ts...> const&);
+      // template<typename... Ts> Tuple(Tuple<Ts...> const &) -> Tuple<Ts...>
+    }
+    
+    // 对于构造函数：implicit deduction guide
+    template<typename T> A(typename T) -> A<T>;
+    // case 1: implicit deduction guide——关闭。话说不是特别理解为啥要关闭
+    template<typename T> struct ValueArg { using Type = T; };
+    template<typename T> struct A{
+      using ArgType = typename ValueArg<T>::Type;
+      A(ArgType b) : a(b) {}
+    };
+    // 变成了template<typename> A(typename ValueArg<T>::type) -> S<T>;
+    // A x(12); 现在编译会报错了
+    
+    // case 2:对于右值T&&是关闭的，以避免非预期的匹配
+    template<typename T> struct Y {
+      Y(T const &);  // template<typename T> Y(T const&) -> Y<T>; #1
+      Y(T&&);  //  template<typename T> Y(T&&) -> Y<T>; #2
+    };
+    
+    string s;
+    Y y = s; // #2是better match。为了避免这种情况，T&&不会有implicit deduction guide
+    ```
 
 * specification
 
   * specification最好直接跟在primary template后。尽量减少specify第三方库，除非对方明确指出了可以这么用（fmtlib）
-
-  * ```c++
+    ```c++
     // pg_0.h
     template <auto N>
     struct MySize { enum { len = 100 }; };
@@ -447,4 +445,102 @@ void f(pair<int, float> pif, pair<int, double> pid, pair<double, double> pdd) {
     }
     ```
 
-  * 
+## Chapter19. Trait 
+
+* SFINAE-based trait
+  * SFINAE out function overload
+  ```c++
+  template <typename T> struct IsDefaultConstructibal_OldVersion {
+    using PassT = char;
+    using FallT = struct { char dummy[2];};
+    template<typename U, typename = decltype(U())>
+    static PassT test(void*);
+
+    template<typename>
+    statkc FallT test(...);
+
+    static constexpr bool value = IsSameT<decltype(test<T>(nullptr)), PassT>;
+  };
+    template <typename T> struct IsDefaultConstructibal_NewVersion {
+    template<typename U, typename = decltype(U())>
+    static true_type test(void*);
+
+    template<typename>
+    statkc false_type test(...);
+
+    static constexpr bool value = decltype(test<T>(nullptr));
+  };
+  ```
+  * SFINAE out partial specialization
+  ```c++
+  template<typename, typename = void_t<>>
+  struct IsDefaultConstructibal : false_type {};
+
+  template<typename T>
+  struct IsDefaultConstructibal<void_t<decltype(T())>> : true_type {};
+  ```
+  * with c++17, lambda可以是constexpr后，推荐下面的实现
+  ```c++
+  // 回头看下gcc的invoke_result的实现，cppcon的不太理解
+  // approach 1
+  template<typename F, typename ...Args, typename = invoke_result_t<declval<F>, declval<Args&&>()...>>
+  true_type isValidImpl(void*);
+
+  template<typename F, typename... Args>
+  false_type isValidImpl(...);
+
+  inline constexpr
+  auto isValid = [](auto f) {
+    return [](auto &&...args) {
+      return decltype(isValidImpl<decltype(f),
+                                  decltype(args)&&...
+                                 >(nullptr)
+                     ){};
+    };
+  };
+
+  constexpr auto isDefaultConstructible = isValid(
+    // [](auto x) -> decltype((void)
+    //                        decltype(valueT(x)) ())
+    //                        {};
+    [](auto x) -> void_t(decltype(valueT(x)) ())
+                        {};
+  );
+  // approach 2
+  template<typename, typename = void_t<>>
+  struct HasVariousT : false_type {};
+
+  template<typename T>
+  struct HasVariousT<T, void_t<decltype(declval<T>().begin()),
+                               typename T::difference_type,
+                               typename T::iterator
+                              >
+                    > : true_type {};
+  ```
+  * SFINAE-friendly trait：写模板时，考虑把条件写到模板参数里
+  * `conditional<bool, Ttype,Ftype>` 要求`Ttype, Ftype`都是well-formed，有时需要额外加一层间接性
+  ```c++
+  // ill-formed
+  template<typename T>
+  struct UnsinedT { using Type = conditional_t<is_integral_v<T>
+                                                && !is_same_v<T, bool>
+                                              , typename make_unsigned_t<T>
+                                              , T>;
+                  };
+
+  // 间接性，well-formed
+  template<typename T> struct IdentityT { using Type = T; };
+  template<typename T> struct MakeUnsignedT { using Type = make_unsigned_t<T>; };
+  template<typename T> struct UnsignedT { 
+                  using Type = typename conditional_t<is_integral_v<T> 
+                                                          && !is_same_v<T, bool>
+                                                      , MakeUnsignedT<T>
+                                                      , IdentityT<T>
+                                                      >::Type; };
+  ```
+  * `is_function`一共有48个特化。cppcon17有个4特化的版本，但是应对不了incomplete type
+    * cv: ` , const, volatile, const volatile`: x4
+    * ref: ` , &, &&`: x3
+    * noexcept: ` , noexcept`: x2
+    * c-styple varargs: ` , ...`: x2
+  * `is_class`是建立在`test(int T::*)`上的；`is_union`需要编译器支持

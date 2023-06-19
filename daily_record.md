@@ -4,6 +4,8 @@
 
 ## 2023
 
+* books
+  * 人月神话。收获不大
 * SoftwareEngineeringAtGoogle——reading
   * https://abseil.io/resources/swe-book/html/ch08.html
 * c++template 2——reading——page511

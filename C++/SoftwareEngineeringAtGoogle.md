@@ -177,6 +177,155 @@ https://abseil.io/resources/swe-book
   * signal：达成goal时的一些信号
   * metrics：signal的proxy，通过这些来量化signal
 
+## Style Guides and Rules
+* Why have rules：sustainable、更容易做good thing，不容易做bad thing。
+* rules 建议
+  * pull their weight：不能太庞大
+  * optimize for the reader：明确代码意图、提供足够信息（注释、override之类）。会导致写起来比较慢，但是减少读的开销
+  * consistent：一致性（不仅限于代码，其他方面，如办公设施、服务治理组件等都适用）。便于维护（新人、换组），便于tooling
+* rules主要聚焦于：
+  * to avoid danger——注意高级特性，尤其是反直觉、易用错的高级特性，要考虑代码长期的维护
+  * to enforce best practices——易读、一致
+  * to ensure consistency
+* 更新规范：
+  * 每条规范在制定时留下原因，pros&cons，一方面便于理解，另一方面后续修改时也有依据
+  * 顺带提一下，c++ style arbiter是4个人，偶数。虽然从投票上说可能会出现平票，但更新应该是广泛同意的，平票意味着还应该继续讨论。
+* applying the rules
+  * tooling：自动化、减少主观偏差、scale up
+
+## Code Review
+* google的范例：
+  * 其他工程师的LGTM + file owner的approval + readability的approval
+* 收益
+  * correctness
+  * comprehension。从他人的视角检查代码的可读性，这关系到日后的维护
+  * consistency。一致性，便于理解和维护
+  * psychological and cultural。团队文化，变的易于提出问题、接受别人的意见
+  * knowledge sharing
+* best practice
+  * be polite adn professional。就事论事，注意交流沟通的方式，不要引人反感
+  * small changes：小步快跑，不拉长战线，减少心智负担。顺带说下，也便于回滚
+  * good change descriptions
+  * reviewers尽量控制在1人。多个reviewer的收益没有那么大
+  * automate where possible。比如代码的静态校验、单测等
+* type of code reviews
+  * greenfield：新增代码。需要过设计评审、需要标注owner、需要文档、单测、甚至CI/CD
+  * Behavioral Changes, Improvements, and Optimizations。日常修改
+  * bugfix & rollback。对于bugfix，意味着要更新测例
+  * 工具生成的大规模改动
+
+## Document
+
+* 不只单独的文档，代码注释也算
+* 好处：
+  * 倒逼设计优化。类似单测
+  * 历史记录，便于后续维护、代码修改
+  * 看上去很舒适。类似破窗户，减少差代码的引入
+  * 减少交流成本，让他们自己看文档去。这也是最直观的收益。
+* 建议
+  * 考虑文档读者
+    * 写文档时，不要对读者有过多假定，有可能有不同知识背景的人会读到这篇文档。可以试着给读者定个画像，比如是写给专家还是新人、写给维护者还是调用方
+  * 区分文档类型，不要杂糅过多信息
+    * reference——API/implementation。以动词开头，动词提供的信息比较多
+    * 设计文档——安全性、协作模块、存储要求等。goals、implement strategy&their trade-offs
+    * tutorial
+    * conceptual documentation——对ref的补充
+    * landing pages——可能要区分对外和对内
+  * 像对待code一样对待文档：owner、bugfix、版本控制
+  * 6W1H,aeeiyo,WHAT,WHEN,WHERE,~~WHICH~~,WHY,WHO,HOW
+  * 段落结构：总分总，简介-讨论-结论等。可以允许一些冗余。
+
+## Testing
+
+* 为何要写testing：不能依靠人来校验、测例是公共可复用的智慧、自动化&scale up
+* 收益
+  * 减少debugging
+  * 增加改动confidence、减少review负担、更快速的发布
+  * documentation、thoughtful design
+* 建议
+  * test size（测试本身的规模）越小越好，可以确保fast & deterministic。small: 单进程；medium: 单机；large: 多机
+  * test scope（被测代码的规模）越小越好。单测-集成测试-端到端测试
+  * 要避免flaky tests。一般的解决方式是重试，但这一方面意味着cpu浪费，更严重的是，会损害对单测的trust
+  * 避免写brittle test，后续迭代可能卡在一堆单测上
+  * 避免限速，如sleep，会导致单测越来越慢
+* the Beyoncé rule: If you liked it, then you shoulda put a test on it
+* 如何推行
+  * 迎新会、认证（level 1-5）或者评分、Testing on the Toilet
+
+## 单测
+
+* 好处——建议覆盖率达到80%
+  * small——fast & deterministic。
+  * 只需关注少量代码，减少心智负担。便于实现&检查
+  * 文档
+* 单测的可维护性，注意事项：
+  * preventing brittle tests
+    * strive for unchanging tests：写后续不需修改的单测
+      * 重构、新特性、bug fixes不应影响旧单测、后两个要加新单测——写单测要保证这3个情况不用修改代码
+      * behavior changes可以影响旧单测
+    * 尽量通过public API来进行测试。不过感觉实践起来比较难
+    * test state, not interactions。比如通过proxy写db后应该直接从db读，而不是从proxy
+  * writing clear tests
+    * 否则无法维护。它不像正式代码，可以看上下游调用，看删除后的影响，从而让维护者理解这块代码：单测代码没有上下游、删了也不会有影响
+    * 写complete & concise的测例
+      * 包含所有相关的、且不包含不相关的信息
+      * test behaviours, not methods。不要都杂糅到一个测例中，按behaviour进行拆分。
+        * Given, When, Then: given X condition, when Y input, then Z behaviour
+      * don't put logic in tests. 即直接把数据写出来，不要有额外的运算。要保证一眼就能看明白
+      * DAMP better作为DRY的补充. descriptive and meaningful phrases vs don't repeate yourself
+        * DRY应该以可读性为核心考虑，必要时可以有一些重复性
+      * 可以将一些共享的setup封程函数
+      * 避免写泛化的validation函数，如有必要，可以写只针对单个conception的validation
+      * 可以写一些infrastructure来简化test
+
+## test double —— 如果可以，还是尽量用真实代码，而非mock
+
+* 主要需要注意
+  * testability：首先，代码要可测，才能运用test double。如果在写代码时未考虑到，意味着后面得专门做修改
+  * applicability：如果test double不好用，会降低开发效率、另外也会导致大家倾向用真实代码
+  * fidelity：必须能或多或少地反映真实代码
+* 尽量用real代码，而非mock：stub & interaction testing
+  * 减少maintain负担
+  * real代码得满足fast、deterministic的，否则得考虑mock
+  * real对象的依赖/构造可能很复杂，可以考虑dependency injection，即把mock的诸个子对象作为构造参数传入真实对象中能够
+  * stub：要设置太多hardcore的参数，会有维护负担
+  * interaction：
+    * 尽量test state，interaction反映的是某些函数是否被调用，这暴露了太多实现细节
+    * 尽量用在state-changing的测例上
+
+## Larger Testing：SUT+Data+Action+Verification
+
+* 代价更高，但是可以较UT更好的fidelity和coverage
+  * 人造数据不真实
+  * mock代码过时
+  * 配置项不匹配。UT一般涉及不到配置
+  * 压测
+  * 一些未预料到的输入
+* 缺陷
+  * flaky、slow、un-scalable
+  * ownership不明确
+  * 缺乏标准，每个业务都可能自己有一套。因此无法自动化
+  * 维护成本较高
+* 可能要在fidelity和易用性、cost上做tradeoff，即简化SUT
+* 各种测试：分为pre-submit和post-submit
+  * 功能性
+  * 性能测试
+  * exploratory
+  * A/B测试
+    * 什么是有意义的diff；避免A/A-diff等噪声；覆盖度、如何搭建两个等价的diff服务
+  * canary：感觉类似做实验
+  * 容灾测试
+  * 用户评测：员工用自家产品、线上实验、用户打分
+* 实践注意事项
+  * 维护成本较高，因此要有好的文档
+  * 控制耗时。本身耗时就很高，如果不多注意，会导致不具实用性
+  * 避免flakiness
+  * understandable: 相比UT，大规模测试更容易出现改A导致B失败，可能要跨模块排查
+    * assertion要明确原因，提供详细信息
+    * 简化确认root cause：提供trace 信息串联上下游各模块
+    * oncall & owner机制
+
+
 ## live_at_head
 
 * "the most important problems in software engineering"
@@ -217,3 +366,5 @@ https://abseil.io/resources/swe-book
   * prefer source control to dependency management
   * SemVer is a lossy-compression
   * By comparison, testing and CI provide actual evidence of whether a new set of versions work together
+
+
