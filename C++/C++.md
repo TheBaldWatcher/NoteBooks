@@ -11,7 +11,10 @@ c++blog https://brevzin.github.io/c++/2019/07/28/comparisons-cpp20/
 
 
 
+# cppcon
 
+* 关于exception的探讨
+  * https://www.youtube.com/watch?v=S4QSKLXdTtA&list=PLHTh1InhhwT6V9RVdFRoCG_Pm5udDxG1c&index=74
 
 cppcon视频：https://www.youtube.com/user/CppCon/playlists?reload=9
 
@@ -91,7 +94,7 @@ cppcon视频：https://www.youtube.com/user/CppCon/playlists?reload=9
 * strict aliasing：
   * https://stackoverflow.com/tags/strict-aliasing/info
   * https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8
-    * 使用memcoy到临时变量，绕后靠编译器优化掉个临时变量。bit_cast在处理`sizeof(From)!=sizeof(To)`时也得这样。
+    * 使用memcoy到临时变量，然后靠编译器优化掉个临时变量。bit_cast在处理`sizeof(From)!=sizeof(To)`时也得这样。
     * cv，using/unsigned、char类型没有问题。
     * 如何正确type tune：memcpy
     * Wstrict-aliasing=1，Wall的等级是3，有些会报不出来

@@ -325,6 +325,38 @@ https://abseil.io/resources/swe-book
     * 简化确认root cause：提供trace 信息串联上下游各模块
     * oncall & owner机制
 
+## deprecation
+
+* 新旧代码一定会有区别（不然就没有切换的必要）。
+  * Hyrum's Law
+  * 区别就意味着要进行评估，这会是工作量的所在
+  * 情感因素、旧更熟悉
+* 最好拆分成in-place的逐渐替换，避免开销不可接受
+* types of deprecation
+  * advisory deprecation：非强制性
+  * compulsory deprecation：强制性
+    * 会影响到用户，要放下手上的活来做更新
+    * 最好把这种工作限制在一个小范围的团队内，让它专门去处理切换
+    * 有些服务是关键节点，切换会有风险。这些节点会成为巨大的阻碍，挑战deadline
+  * Warning
+    * 需要给出操作指南
+    * 最好在用到旧代码时就提示，而不是等代码已经合入
+    * 最好在旧代码下线前就已经提示了较长时间
+  * managing the deprecation process
+    * 需要有人来own
+    * 最好拆分成小的milestone
+    * tools
+      * discovery发现有谁在用，确保不会影响功能。同时也能作为一个进度指示器。一般通过CodeSearch、CI来做静态分析，动态依赖则通过Log
+      * preventing backsliding避免新加的代码又用回deprecated的。微观层面上，在代码中标记deprecation；宏观层面上，将一些项目作为标杆，做定期检查
+
+## version control and branch management
+
+* 避免dev分支，应使用feat。以避免游离master太久，merge、async、debug回滚都比较麻烦。CI可以减少merge负担，支持频繁merge
+* release分支如果可以也尽量避免。CD确保了快速回滚和更新，release分支没有太多意义。当然，还是得看具体情况
+* 实践
+  * One-Version Rule: Developers must never have a choice of “What version of this component should I depend upon?”——多个版本意味着给后续迭代挖坑
+  * No Long-Lived Branches
+
 
 ## live_at_head
 
@@ -366,5 +398,4 @@ https://abseil.io/resources/swe-book
   * prefer source control to dependency management
   * SemVer is a lossy-compression
   * By comparison, testing and CI provide actual evidence of whether a new set of versions work together
-
 

@@ -431,15 +431,6 @@
 
   * 基本流、备用流、异常流
   * 用例精简——组合数学-正交实验
-  * trpc自动生成用例&验证
-    * `./trpc-cli -protofile=./comment.proto --interfacename=list -outputjson Danmu.json`
-    * `./trpc-cli -datafiles=testdata.json -tarfet=ip://9.141.2.204:11006`
-
-
-
-# granfana
-
-* 
 
 # 重构
 
