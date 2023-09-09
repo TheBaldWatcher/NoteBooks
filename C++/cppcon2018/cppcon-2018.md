@@ -425,9 +425,32 @@
 
 * 为什么返回值和入参相关时无法RVO：函数return slot是在函数调用堆栈上方的，根据这个假定可以做RVO。但如果要返回入参，无法控制其内存位置，导致这个假定无法满足
 * 不要返回move(x)。c++会先尝试(N)RVO，不满足时，会自动尝试move(x)，显式写出来会关掉NRVO
-* 可能会导致NRVO的情况：if the first overload resolution fails or was not performed, or **if the type of the first parameter of the selected constructor is not an rvalue reference to the object's type**(possibly cv-qualified), overload resolution is performed again, considering the object as an lvalue
+* 可能会导implicit move失败的情况的情况：if the first overload resolution fails or was not performed, or **if the type of the first parameter of the selected constructor is not an rvalue reference to the object's type**(possibly cv-qualified), overload resolution is performed again, considering the object as an lvalue
   * slicing：函数返回子类。**the object's type**
   * Converting:
+    * ![image-20230825090343110](./image-20230825090343110.png)
+    * ![image-20230825090459987](./image-20230825090459987.png)
+    * ![image-20230825090700775](./image-20230825090700775.png)
+
+  * example
+  * ![image-20230828084214921](./image-20230828084214921.png)
+  * ![image-20230828084328908](./image-20230828084328908.png)
+  * ![image-20230828084554250](./image-20230828084554250.png)
+  * ![image-20230828084705775](./image-20230828084705775.png)
+  * ![image-20230828084817973](./image-20230828084817973.png)
+  * ![image-20230828085114476](./image-20230828085114476.png)
+
+
+
+
+##  [Kostya Serebryany “Memory Tagging and how it improves C/C++ memory safety”](https://www.youtube.com/watch?v=lLEcbXidK2o&list=PLHTh1InhhwT6V9RVdFRoCG_Pm5udDxG1c&index=94)
+
+* 比ASAN开销小（可以用在生产环境？）。另外有些硬件指令上直接支持。
+
+## [R. Leahy “The Networking TS in Practice: Testable, Composable Asynchronous I/O in C++”](https://www.youtube.com/watch?v=hdRpCo94_C4&list=PLHTh1InhhwT6V9RVdFRoCG_Pm5udDxG1c&index=97)
+
+
+
 
 
 # 未看，等以后用到再看
