@@ -8,6 +8,24 @@
 
 * template 为了限定类型，所以有trait、enbale_if等机制
 * 除了类型，还得考虑ref，比如`T a;`如果T是ref就有问题；或者还得考虑const；考虑是否要decay（array、function）、考虑void
+* 一些不太好写的case，暂时写成这样，以后看看能否有更优雅的写法
+* ```c++
+  // CRTP与 模板参数的模板参数。似乎没法写成template<template<typename State>Child> classEventCrtp
+  template <typename State>
+  struct Event {
+    virtual ~Event()                                  = default;
+    virtual unique_ptr<State> dispatch(State &) const = 0;
+  };
+  
+  template <typename State, template <typename> class Child>
+  struct EventCrtp : private Event<State> {
+    unique_ptr<State> dispatch(State &s) const override { return s.on_event(*static_cast<const Child<State> *>(this)); }
+  };
+  
+  template <typename State>
+  class EventConnect final : public EventCrtp<State, EventConnect> {};
+  ```
+* 
 
 # Part I: Basics
 
@@ -24,7 +42,7 @@
   template<typename RT = long, typename T>
   RT func(T );
   // 别忘了，要在函数调用前，让所有的函数重载、特化可见
-  ```
+```
 
 * 对于模板，尽量pass-by-value。C1.6.1
 
@@ -59,7 +77,7 @@
     // template <typename T> std::ostream& operator<<( std::ostream&, const Test<T>& );
     friend std::ostream& operator<< <T>( std::ostream&, const Test<T>& );
   };
-  ```
+```
 
 * |                   | function template | class template |
   | ----------------- | ----------------- | -------------- |
@@ -118,7 +136,7 @@
    					template<typename> class Cont = deque> // Elem ommited
   class Stack{};
   Stack<int, vector> v_stack; // vector<int> -> vector
-  ```
+```
 
 ## Chapter 6-8 enable_if、Pass by Value/Ref
 
@@ -145,7 +163,7 @@
     template<typename U, typename = enable_if_t<!is_integral_v<U>>>
     C(C<U> const&) {}
   };
-  ```
+```
 
 * value / ref
 
@@ -161,7 +179,7 @@
   outR(ReturnConstString());  // ok, T deduced as string const
   outR(move(a_str));  // error
   outR(move(a_const_str));  // ok, T deduced as string const
-  ```
+```
 
   * 先by value（把by ref视为一个优化）。能方便地处理decay的情况。如果有性能影响，可以考虑借助std::ref
 
@@ -185,7 +203,7 @@
     // 只支持有t.size()的类型T。void是为了避免有用户重载了,操作符
     template<typename T>
     auto len(Tconst &t) -> decltype((void)(t.size()), T::size_type){}
-    ```
+  ```
 
 ## Chapter 11 GenericLib
 
@@ -278,7 +296,7 @@
     int main() { f<double>(); }
     // #2 : #2a for S<T>, #2b for f<double>
     
-    ```
+   ```
 
 * 编译优化：以string为例
 
@@ -386,7 +404,7 @@ void f(pair<int, float> pif, pair<int, double> pid, pair<double, double> pdd) {
       // decltype(auto) + SFINAE, 会导致immediate instantiation, 此时要考虑immediate context
       // 简言之：declauto(auto) 不要和SFINAE拥在一起
       template<typename T, typename U> auto add(T t, U u) -> decltype(auto) { return t + u; }
-      ```
+     ```
 
   * deduction guide
     ```c++
@@ -455,19 +473,19 @@ void f(pair<int, float> pif, pair<int, double> pid, pair<double, double> pdd) {
     using FallT = struct { char dummy[2];};
     template<typename U, typename = decltype(U())>
     static PassT test(void*);
-
+  
     template<typename>
     statkc FallT test(...);
-
+  
     static constexpr bool value = IsSameT<decltype(test<T>(nullptr)), PassT>;
   };
     template <typename T> struct IsDefaultConstructibal_NewVersion {
     template<typename U, typename = decltype(U())>
     static true_type test(void*);
-
+  
     template<typename>
     statkc false_type test(...);
-
+  
     static constexpr bool value = decltype(test<T>(nullptr));
   };
   ```
@@ -475,7 +493,7 @@ void f(pair<int, float> pif, pair<int, double> pid, pair<double, double> pdd) {
   ```c++
   template<typename, typename = void_t<>>
   struct IsDefaultConstructibal : false_type {};
-
+  
   template<typename T>
   struct IsDefaultConstructibal<void_t<decltype(T())>> : true_type {};
   ```
@@ -485,10 +503,10 @@ void f(pair<int, float> pif, pair<int, double> pid, pair<double, double> pdd) {
   // approach 1
   template<typename F, typename ...Args, typename = invoke_result_t<declval<F>, declval<Args&&>()...>>
   true_type isValidImpl(void*);
-
+  
   template<typename F, typename... Args>
   false_type isValidImpl(...);
-
+  
   inline constexpr
   auto isValid = [](auto f) {
     return [](auto &&...args) {
@@ -498,7 +516,7 @@ void f(pair<int, float> pif, pair<int, double> pid, pair<double, double> pdd) {
                      ){};
     };
   };
-
+  
   constexpr auto isDefaultConstructible = isValid(
     // [](auto x) -> decltype((void)
     //                        decltype(valueT(x)) ())
@@ -509,7 +527,7 @@ void f(pair<int, float> pif, pair<int, double> pid, pair<double, double> pdd) {
   // approach 2
   template<typename, typename = void_t<>>
   struct HasVariousT : false_type {};
-
+  
   template<typename T>
   struct HasVariousT<T, void_t<decltype(declval<T>().begin()),
                                typename T::difference_type,
@@ -527,7 +545,7 @@ void f(pair<int, float> pif, pair<int, double> pid, pair<double, double> pdd) {
                                               , typename make_unsigned_t<T>
                                               , T>;
                   };
-
+  
   // 间接性，well-formed
   template<typename T> struct IdentityT { using Type = T; };
   template<typename T> struct MakeUnsignedT { using Type = make_unsigned_t<T>; };

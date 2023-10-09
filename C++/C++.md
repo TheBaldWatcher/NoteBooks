@@ -403,6 +403,8 @@ hana::eval_if;
 
   * variant
 
+    * 任何时间都是某个类型、或者valueless_by_exception。后者是初始化或赋值时可能会遇到
+    * 默认初始化为第一个类型的值。空variant是ill-formed，使用`variant<monostate>`。
     * Motivation: union不知道持有的类型、不能有non-trivial、不能derive。可以搞个限定类型集合的polymorphism
       * comparing variant polymorphism
       * pro: 不需要基类及其接口(不过这个比较反直觉)、不需要virtual、不需要pointer(值语义，因此没有指针的一些问题，如freed memory, memory leak, no heap allocation)

@@ -11,6 +11,11 @@
 
 * 画heap：https://en.cppreference.com/w/cpp/algorithm/ranges/is_heap_until
 
+* variant实现多态
+  * 多态意味着运行期判断、往往还有堆内存分配（Base *p = new Drive(); ）
+  * variant意味着静多态。如果无法完全静多态，比如要读配置，可以用模板来优化。可以参考2017的Carl Cook “When a Microsecond Is an Eternity: High Performance Trading Systems in C++
+
+
 [toc]
 
 
@@ -49,6 +54,99 @@
       c.process_event(Connect{});
   }
   ```
+
+## [Mateusz Pusz “Effective replacement of dynamic polymorphism with std::variant”](https://www.youtube.com/watch?v=gKbORJtnVu8&list=PLHTh1InhhwT6V9RVdFRoCG_Pm5udDxG1c&index=100)
+
+* ```c++
+  // case 1: 一个只基于event切换的状态机
+  template<typename Event>
+  class State : private noncopyable {
+   public:
+    virtual ~state() = default;
+    virtual unique_ptr<state> on_event(Event&) = 0;
+  };
+  class StateIdle final : publis State{/*...*/};
+  class StateConnecting final : publis State{/*...*/};
+  class StateConnected final : publis State{/*...*/};
+  
+  template<typename Event>
+  class Fsm {
+    void dispatch(Event e) {
+      if (auto new_state = state_->on_event(e); new_state != nullptr) {
+        state_ = move(new_state);
+      }
+    }
+  };
+  
+  // case 2: 基于state + event。double dispatch aka visitor pattern
+  // 类似调用??_event::func(??_state) -> xx_event::func(yy_state)
+  // fsm持有base_event指针，然后做dispatch
+  //   第一次dispatch: Event::e->dispatch(e)，即确定xx_event::func(??_state)
+  //   第二次dispatch: State::on_event，即确定xx_event::func(yy_state)
+  // Event要继承，State要overload，维护起来比较麻烦。违反开放闭合原则：后面要加状态要改旧代码
+  template<typename State>
+  struct Event : private noncopyable {
+    virtual ~event() = default;
+    virtual unique_ptr<State> dispatch(State&) const = 0;
+  };
+  class EventConnect final : public Event<State>{
+    unique_ptr<State> dispatch(State &s) const override { return s.on_event(*this);}
+  };
+  class EventConnected final : public Event<State>{/*...*/};
+  class EventDisonnect final : public Event<State>{/*...*/};
+  class EventTimeout final : public Event<State>{/*...*/};
+  
+  class State : private noncopyable {
+   public:
+    virtual ~state() = default;
+    virtual unique_ptr<state> on_event(EventConnect&) = 0;
+    virtual unique_ptr<state> on_event(EventConnected&) = 0;
+    virtual unique_ptr<state> on_event(EventDisconnect&) = 0;
+    virtual unique_ptr<state> on_event(EventTimeout&) = 0;
+  };
+  // 这里要维护N_event x N_state个函数，
+  class StateIdle final : publis State{/*...*/};
+  class StateConnecting final : publis State{/*...*/};
+  class StateConnected final : publis State{/*...*/};
+  
+  template<typename State, typename Event>  // 这里多了一个State参数
+  class Fsm {
+    void dispatch(Event e) {
+      if (auto new_state = e->dispatch(e); new_state != nullptr) {
+        state_ = move(new_state);
+      }
+    }
+  };
+  
+  // case 2.1: XXConnect的dispatch实现都是return s.on_event(*this)，因此可以用CRTP简化
+  template <typename State, template <typename> class Child>
+  struct EventCrtp : private Event<State> {
+    unique_ptr<State> dispatch(State &s) const override { 
+      return s.on_event(*static_cast<const Child<State> *>(this)); }
+  };
+  
+  template <typename State>
+  class EventConnect final : public EventCrtp<State, EventConnect> {};
+  template <typename State>
+  class EventConnected final : public EventCrtp<State, EventConnected> {};
+  template <typename State>
+  class EventDisonnect final : public EventCrtp<State, EventDisonnect> {};
+  template <typename State>
+  class EventTimeout final : public EventCrtp<State, EventTimeout> {};
+  // case 2.2： 用template将各个测例写到一行。不过由于没有校验结果，或许没多大意义？
+  // 注意，这里make_unique有堆内存分配，variant想优化掉
+  template<typename Fsm, typename ...Events>
+  void dipatchTest(Fsm &fsm, Event const &...events) {
+    (fsm.dispatch(*events), ...);
+  }
+  dispatchTest(fsm,
+              make_unique<EventConnect>("train-it.eu"),
+              make_unique<EventTimeout>(),
+              make_unique<EventConnected>(),
+              make_unique<EventDisconnect>());
+  ```
+
+* 
 
 ## [CppCon 2018: Chandler Carruth “Spectre: Secrets, Side-Channels, Sandboxes, and Security”](https://www.youtube.com/watch?v=_f7O3IfIR2k)
 
@@ -449,7 +547,201 @@
 
 ## [R. Leahy “The Networking TS in Practice: Testable, Composable Asynchronous I/O in C++”](https://www.youtube.com/watch?v=hdRpCo94_C4&list=PLHTh1InhhwT6V9RVdFRoCG_Pm5udDxG1c&index=97)
 
+* 概述：举了一些网络代码的问题，主要是可测性。
 
+  * 联想：日常工作可能遇到和时间有关的代码，为了保证可测性，需要把时间参数模板化或者参数化，以便在单测中，可以确保其运行状态是确定的。（如果单测状态不确定，偶尔成功偶尔失败，这个单测就没有意义）
+  * 除了时间，也减少其他的concrete类的书写。因为可能只用到了一部分接口，可以只对这些接口进行mock；但是如果是具体的类，会把代码限制的很死
+
+* 目前的代码质量欠佳：
+
+  * 用到了concrete types/global state（file descriptor、timers, e.g. nanosleep）
+  * 导致不是testable的。需要真实的连接、或者要等待真实的时间
+  * 和底层协议耦合（TCP -> TLS可能导致重写、重构）
+
+* synchronous vs proactor
+
+* |            | Synchronous                                                  | Asynchronous(Proactor)                                       |
+  | ---------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+  | Initiation | Function call                                                | Funcation call( initiating function)                         |
+  | I/O        | Blocks calling thread                                        | proceeds in background( initiating fucntion returns immediately) |
+  | completion | control of thread returned to caller, returned values transmit result | **completion handler**( callable object) invoked, parameter transmit result |
+
+  ![image-20230916152912257](./image-20230916152912257.png)
+
+```c++
+struct heatbeat {
+  std::net::system_timer &timer_;
+  std::net::ip::tcp::socket &socket_;
+  const std::byte *buffer_;
+  std::size_t size_;
+  void initiate();
+  void operator() (std::error_code ec, std::sizee_t written);
+};
+
+void heatbeat::initiate() {
+  async_wait_then_write(timer_, socket_, seconds(5), std::net::buffer(buffer_, size_), move(*this));
+}
+
+void heatbeat::operator() (std::error_code ec, std::sizee_t written) {
+  if (ec) throw std::system_error(ec);
+  initiate();
+}
+// 这个实现不便于testable
+template<typename ConstBufferSequence, typename Hanlder>
+void async_wait_then_write(std::net::system_timer &timer
+                          , std::net::ip::tcp::socket &socket
+                          , std::net::system_timer::duration dur
+                          , ConstBufferSequence bufs
+                          , Handler &&h) {
+  timer.expires_after(dur);
+  auto f = [&sock, bufs = move(buf), h = forward<Hanlder>(h)](std::error_code ec) mutable {
+    if (ec) h(ec, nullptr);
+    else std::net::async_write(sock, move(bufs), move(h));
+  };
+  timer.async_wait(move(f));
+}
+// testable. 只是改了timer和socket的类型，函数实现无变动
+template<typename Waitabletimer, typename AsyncWriteStream
+					, typename ConstBufferSequence, typename Hanlder>
+void async_wait_then_write(Waitabletimer &timer  // std::net::system_timer
+                          , AsyncWriteStream &socket  // std::net::ip::tcp::socket
+                          , std::net::system_timer::duration dur
+                          , ConstBufferSequence bufs
+                          , Handler &&h) {
+  timer.expires_after(dur);
+  auto f = [&sock, bufs = move(buf), h = forward<Hanlder>(h)](std::error_code ec) mutable {
+    if (ec) h(ec, nullptr);
+    else std::net::async_write(sock, move(bufs), move(h));
+  };
+  timer.async_wait(move(f));
+}
+// test
+auto out = std::byte[1024];
+auto in = "GET / HTTP/1.1\r\n\r\n"s;
+auto ctx = std::net::io_context;
+auto timer = mock_waitable_timer{ctx.get_executor()};
+auto stream = mock_async_write_stream{ctx.get_executor(), out, sizeof(out)};
+auto i = false;
+auto ec = std::error_code;
+size_t bytes = 0;
+async_wait_then_write(timer, stream, 1000ms, std::net::buffer(in)
+                     , [&] (auto e, auto b) {
+                       i = true;
+                       ec = e;
+                       bytes = b;
+                     });
+assert(!i);  // 还没运行
+
+size_t handlers = ctx.poll();  // allow pending handlers to run
+assert(handlers);
+timer.expire();
+ctx.restart();	// prepare io_context for another run
+handlers = ctx.poll();
+assert(handlers);
+assert(i);
+assert(!ec);
+assert(bytes == in.size());
+size_t written = sizeof(out) - stream.size_;
+assert(written == in.size());
+assert(std::equal(reinterpret_cast<const char*>(out)
+                 , reinterpret_cast<const char *>(out) + written
+                 , in.begin(), in.end()));
+
+
+
+```
+
+* ![image-20230916160656775](./image-20230916160656775.png)
+
+* ```c++
+  // mock
+  struct mock_async_write_stream {
+    std::net::io_context::executor_type ex_;
+    std::byte *ptr_;
+    std::size_t size_;
+    io_context::executor_type get_executor() noexcept {return ex_;}
+    template<class ConstBufferSequence, class Handler> 
+      void async_write_some(ConstBufferSequence cb, Handler &&h);
+  };
+  
+  template<class ConstBufferSequence, class Handler> 
+    void mock_async_write_steam::async_write_some(ConstBufferSequence cb, Handler &&h) {
+    std::error_code ec;
+    std::size_t bytes = 0;
+    if (std::net::buffer_size(cb)) {
+      bytes = std::net::buffer_copy(std::net::buffer(ptr_, size_), move(cb));
+      size_ -= bytes;
+      ptr_ += bytes;
+      if (0 == bytes) {
+        ec = make_error_code(std::net::stream::errc::eof);
+      }
+    }
+    std::net::post(std::net::bind_executor(ex_
+                                           , std::bind(forward<Handler>(h), ec, bytes)
+                                          )
+                  );
+  }
+  ```
+
+* 多线程
+
+* ```c++
+  
+  // 多线程, 扩展async_wait_then_write中的lambda
+  template<typename Waitabletimer, typename AsyncWriteStream
+  					, typename ConstBufferSequence, typename Hanlder>
+  struct write_op{
+    Waitabletimer timer_;
+    AsyncWriteStream sock_;
+    ConstBufferSequence cb_;
+    Hanlder h_;
+    
+    void operator()(std::error_code ec) {
+      if (ec) h_(ec, 0);
+      else std::net::async_write(sock_, move(cb_), move(h));
+    }
+    
+    using executor_type = std::net::associated_executor_t<Handler, decltype(declval<WaitableTimer>().get_executor())>;
+    auto get_executor() const noexcept {
+      return std::net::get_associated_executor(h_, timer_.get_executor());
+    }
+  };
+  // 这里顺便练手一下deduction guide
+  template <typename Waitabletimer, typename AsyncWriteStream, typename ConstBufferSequence, typename Hanlder>
+  write_op(Waitabletimer, AsyncWriteStream, ConstBufferSequence, Hanlder)
+      -> write_op<Waitabletimer, AsyncWriteStream, ConstBufferSequence, Hanlder>;
+  
+  template<typename Waitabletimer, typename AsyncWriteStream
+  					, typename ConstBufferSequence, typename Hanlder>
+  void async_wait_then_write(Waitabletimer &timer  // std::net::system_timer
+                            , AsyncWriteStream &socket  // std::net::ip::tcp::socket
+                            , std::net::system_timer::duration dur
+                            , ConstBufferSequence bufs
+                            , Handler &&h) {
+    timer.expires_after(dur);
+    auto op = write_op{timer, socket, bufs, std::forward<Handler>(h)};
+    timer.async_wait(move(f));
+  }
+  // test
+  auto write_buffer = const std::byte[1024];
+  auto read_buffer = std::byte[1024];
+  auto ctx = std::net::io_context;
+  // strand确保同一时间只有一个读或写，避免多线程问题。
+  // 这个不影响paralllism: client A的读写同一时间可以只有一个。但client A和client B可以是并行的
+  using strand_type = std::net::strand<std::net::io_context::executor_type>;
+  strand_type strand(ctx.get_excutor()); 
+  // ...
+  heartbeat<strand_type>{strand, timer, socket, write_buffer, sizeof(write_buffer)}.initiate();
+  process<strand_type>{strand, socket, read_buffer, sizeof(read_buffer)}.initiate();
+  std::thread t([&]{ctx.run();});
+  ctx.run();
+  ```
+
+* 上面是一堆函数回调，如果想写future/promise的形式也可以，但没细看。42:00
+
+## [Mateusz Pusz “Effective replacement of dynamic polymorphism with std::variant”](https://www.youtube.com/watch?v=gKbORJtnVu8&list=PLHTh1InhhwT6V9RVdFRoCG_Pm5udDxG1c&index=100)
+
+* 
 
 
 
