@@ -100,7 +100,33 @@
 
 # Binary Indexed tree
 
+* ```c++
+  // 暂时按这么实现。好一点的实现得回去翻下代码或leetcode
+  int query(int x) {
+      int ans = 0;
+      for (; x; x -= x & -x) ans += bit[x];
+      return ans;
+  }
+  
+  void update(int x, int delta) {
+      for (; x; x += x & -x) bit[x] += delta;
+  }
+  ```
+
 * 
+
+* 树状数组与逆序对
+
+  * ```
+    int cnt = 0;
+    for (int i = A.size() - 1; i >= 0; --i) {
+        cnt += query(A[i]);
+        update(A[i], 1);
+    }
+    ```
+
+  * 
+
 
 
 # dilworth/skyline
@@ -220,13 +246,18 @@
 
   * 如果cost[i,j]满足关于区间的单调关系对于a<=b<=c<=d, cost[b,c] <= cost[a,d]
 
-  * 且cost满足四边形不等式：交叉小于包含，即a<=b<=c<=d, cost[a,c] + cost[b,d] <=cost[a,d] + cost [b,c]
+  * 且cost满足四边形不等式：交叉不大于包含，即a<=b<=c<=d, cost[a,c] + cost[b,d] <=cost[a,d] + cost [b,c]
 
   * 则dp满足四边形不等式，且最优决策点s[i, j-1] <= s[i,j] <= s[i+1,j]，即某一端点移动后，决策点不会左移
 
   * 复杂度：按len = j-i来枚举，每次枚举s[i,j]只会右移且最多到n，故复杂度为N^2.
 
 
+
+# 图
+
+* https://blog.csdn.net/SZTU_ZJB/article/details/119819181
+  * isap看起来有点像算法导论里的
 
 
 # 刷题进度

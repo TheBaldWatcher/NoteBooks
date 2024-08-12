@@ -27,4 +27,80 @@
   * branchless即同时计算两个分支，好处是开销恒定，在不确定度很高时（如25%-75%）比分支预测好，当然还得看分支计算量进行调整
     * 从controlle hazard变成了data hazard。虽然pipeline还是会被stall，但是开销更小，有专门的指令，比如cmov
   * 
+
+## 4. Compilation
+
+* header only的library可以确保编译时不会丢失信息，能更好的优化，但是有致重复的工作
+* specifying targets: `-march=haswell, -mavx2, -mpopcnt`等，用到了再细看
+* situational optimizations
+
+  * Loop unroll
+
+  * ```c++
+    #pragma GCC push_options
+    #pragma GCC optimize ("unroll-loops")
+    
+    //add 5 to each element of the int array.
+    void add5(int a[20]) {
+        int i = 19;
+        for(; i > 0; i--) {
+            a[i] += 5;
+        }
+    }
+    
+    #pragma GCC pop_options
+    
+    // 或者
+    //add 5 to each element of the int array.
+    __attribute__((optimize("unroll-loops")))
+    void add5(int a[20]) {
+        int i = 19;
+        for(; i > 0; i--) {
+            a[i] += 5;
+        }
+    }
+    ```
+
+  * profile-guided optimization
+
+    * ```bash
+      g++ -fprofile-generate [other flags] source.cc -o binary
+      g++ -fprofile-use [other flags] source.cc -o binary
+      
+      # 一些flag
+      -ffast-math
+      ```
+      
+    * ```c++
+      // 一些代码提示: a、b不会align，因此编译器直接返回22。但restrict不在标准里
+      int add2(int* __restrict  a, int* __restrict b) 
+      {
+          *a = 10;
+          *b = 12;
+          return *a + *b ;
+      }
+      /*
+      add2(int*, int*):                            # @add2(int*, int*)
+              mov     dword ptr [rdi], 10
+              mov     dword ptr [rsi], 12
+              mov     eax, 22
+              ret
+      */
+      ```
+
+## Profile
+
+* ```c++
+  // `if (random() % 100 == 0) {xxx}`可以简化为几何分布
+  void query() {
+      static next_sample = geometric_distribution(sample_rate);
+      if (next_sample--) {
+          next_sample = geometric_distribution(sample_rate);
+          // ...
+      }
+      // ...
+  }
+  
+  ```
+
 * 

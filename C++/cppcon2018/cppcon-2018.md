@@ -16,8 +16,6 @@
   * variant意味着静多态。如果无法完全静多态，比如要读配置，可以用模板来优化。可以参考2017的Carl Cook “When a Microsecond Is an Eternity: High Performance Trading Systems in C++
 
 
-[toc]
-
 
 
 
@@ -53,12 +51,92 @@
       Connection c;
       c.process_event(Connect{});
   }
+  
+  // case 4 variant + CRTP
+  template<typename Derived, typename StateVariant, typename EventVariant>
+  class fsm {
+    StatVariant state_;
+   public:
+    void dispatch(EventVariant const& event)  {
+      Derived &child = static_cast<Derived&>(*this);
+      auto new_state = visit(
+        [&](auto &s, const auto& e) ->optional<StateVariant> {
+          return child.on_event(s, e);
+        },
+        state_, event);
+      if (new_state) {
+        state_ = *std::move(new_state);
+      }
+    }
+  }
+  // case 4.1 去掉了event variant，变成了内部的模板函数
+  template<typename Derived, typename StateVariant>
+  class fsm {
+    StatVariant state_;
+   public:
+    template<typename Event>
+    void dispatch(Event const& event)  {
+      Derived &child = static_cast<Derived&>(*this);
+      auto new_state = visit(
+        [&](auto &s, const auto& e) ->optional<StateVariant> {
+          return child.on_event(s, std::forward<Event>(e));
+        },
+        state_, event);
+      if (new_state) {
+        state_ = *std::move(new_state);
+      }
+    }
+  }
+  
+  
+   class ConnectionFsm: public fsm<ConnectionFsm, State> {
+    public:
+     auto on_event(StateIdle &, EventConnect const &e) {}
+     auto on_event(StateConnecting &, EventConnected const &e) {}
+     auto on_event(StateConnecting &, EventTimeout const &e) {}
+     // ...
+     template<typename State, typename Event>
+     auto on_event(State &, Event const&) { /* default impl*/ }
+   }
+  
+  
+  // case 5: Variant + Transitions in states
+  template<typename StateVariant, typename OnInvalidTransition>
+  class fsm {
+    StatVariant state_;
+   public:
+    template<typename Event>
+    void dispatch(Event const& event)  {
+      auto new_state = visit(overloaded{ // overloaded is c++ 20
+        [&](auto &, decltype(s.on_event(event))* = nullptr) -> optional<StateVariant> {
+          return s.on_event(forward<Event>(event));
+        },
+        
+      }, state_);
+      if (new_state) {
+        state_ = *std::move(new_state);
+      }
+      
+      Derived &child = static_cast<Derived&>(*this);
+      auto new_state = visit(
+        [&](auto &s, const auto& e) ->optional<StateVariant> {
+          return child.on_event(s, std::forward<Event>(e));
+        },
+        state_, event);
+    }
+  }
   ```
 
 ## [Mateusz Pusz “Effective replacement of dynamic polymorphism with std::variant”](https://www.youtube.com/watch?v=gKbORJtnVu8&list=PLHTh1InhhwT6V9RVdFRoCG_Pm5udDxG1c&index=100)
 
 * ```c++
-  // case 1: 一个只基于event切换的状态机
+  // case 1: single dispatch。通过state作为base_ptr进行分发
+  // dispatch、State都是基于Event的模板
+  // 有堆内存分配：state_
+  // 维护成本: 
+  //  * 增加XxxState: 要针对每个Event写一遍on_evnet, 还算可接受
+  //  * 增加XxxEvent: 要把所有XxxState都实现一次，这就不可接受了，尤其是State可能存在多层继承
+  //  * State可能存在多层继承
   template<typename Event>
   class State : private noncopyable {
    public:
@@ -71,6 +149,7 @@
   
   template<typename Event>
   class Fsm {
+    unique_ptr<State<Event>> state_;
     void dispatch(Event e) {
       if (auto new_state = state_->on_event(e); new_state != nullptr) {
         state_ = move(new_state);
@@ -79,11 +158,18 @@
   };
   
   // case 2: 基于state + event。double dispatch aka visitor pattern
+  // 先分发到event，再根据event分发到state
+  // 感觉治标不治本，和single dispatch没太大区别，区别只是state的on_event从模板变成了非模板函数
   // 类似调用??_event::func(??_state) -> xx_event::func(yy_state)
   // fsm持有base_event指针，然后做dispatch
   //   第一次dispatch: Event::e->dispatch(e)，即确定xx_event::func(??_state)
   //   第二次dispatch: State::on_event，即确定xx_event::func(yy_state)
-  // Event要继承，State要overload，维护起来比较麻烦。违反开放闭合原则：后面要加状态要改旧代码
+  // 缺陷：
+  //   Event要继承，State要overload，维护起来比较麻烦。违反开放闭合原则：后面要加状态要改旧代码
+  //   基于object，即可能有堆内存分配
+  //  * 增加XxxState: 要针对每个Event写一遍on_evnet, 还算可接受
+  //  * 增加XxxEvent: 要把所有XxxState都实现一次，这就不可接受了，尤其是State可能存在多层继承
+  //  * 可能存在多层继承
   template<typename State>
   struct Event : private noncopyable {
     virtual ~event() = default;
@@ -111,7 +197,8 @@
   
   template<typename State, typename Event>  // 这里多了一个State参数
   class Fsm {
-    void dispatch(Event e) {
+    unique_ptr<State> state_;
+    void dispatch(Event const& e) {
       if (auto new_state = e->dispatch(e); new_state != nullptr) {
         state_ = move(new_state);
       }
@@ -144,9 +231,74 @@
               make_unique<EventTimeout>(),
               make_unique<EventConnected>(),
               make_unique<EventDisconnect>());
+  
+  // case 3: variant + evternal transitions
+  struct EventConnect {/*..*/};
+  struct EventConnected {};
+  struct EventDisConnect {};
+  struct EventTimeout {};
+  using Event = variant<EventConnect, EventConnected, EventDisConnect, EventTimeout>;
+  
+  struct StateIdle {};
+  struct StateConnecting {};
+  struct StateConnected {};
+  using State = variant<StateIdle, StateConnecting, StateConnected>;
+  
+  struct transitions { // visitor
+    optional<State> operator() (StateIdle&, EventConnect cont &e) {/**/}
+    optional<State> operator() (StateConnecting&, EventConnected cont &e) {/**/}
+    optional<State> operator() (StateConnecting&, EventTimeout cont &e) {/**/}
+    optional<State> operator() (StateConnected&, EventDisconnect cont &e) {/**/}
+    template<typename State, typename Event>
+    optional<State> operator() (State&, Event const&) const {return nullopt;} //default
+  };
+  
+  template<typename StateVariant, typename EventVariant, typename Transistions>
+  class Fsm {
+    StateVariant state_;
+    void dispatch(EventVariant const&event) {
+      if (optional<StateVariant new_state = visit(Transistions{}, stat_, event); new_state) {
+        state_ = *move(new_state);
+      }
+    }
+  }
+  // case 4: variant + transitions in fsm
+  // 把transition的逻辑放到的fsm内部。为了便于扩展，Fsm变成了可以继承的+CTRP，即transition的逻辑放到子类实现
+  template< typename Derived, typename StateVariant, typename EventVariant>
+  class Fsm {
+    StateVariant state_;
+    void dispatch(EventVariant const&event) {
+      Derived &child = static_cast<Derived>(*this);
+      if (optional<StateVariant new_state = visit(
+        [&](auto &s, auto const &e) -> optional<StateVariant>{
+          return child.on_event(s, e)
+        }
+          , stat_, event); new_state) {
+        state_ = *move(new_state);
+      }
+    }
+  }
+  // case 5: variant + transistions in states
+  template<typename StateVariant, typename OnInvalidTransition>
+  class Fsm {
+    StateVariant state_;
+    template<typename Event>
+    void dispatch(Event &&event) {
+      auto new_state = visit(overloaded {
+        [&](auto &s, decltype(s.on_event(event))* = nullptr] -> optional<StateVariant> {
+          return s.on_event(forward<Event>(event));
+        },
+        [&](auto &...s) -> optional<StateVariant> {
+          return OnInvalidTransistion() (s..., forward<Event>(event));
+        }, state_);
+      if (new_state) {
+        state_ = *move(new_state);
+      }
+    }
+  }
   ```
-
-* 
+  
+* ![20231213125221](20231213125221.jpg)
 
 ## [CppCon 2018: Chandler Carruth “Spectre: Secrets, Side-Channels, Sandboxes, and Security”](https://www.youtube.com/watch?v=_f7O3IfIR2k)
 
@@ -739,14 +891,97 @@ assert(std::equal(reinterpret_cast<const char*>(out)
 
 * 上面是一堆函数回调，如果想写future/promise的形式也可以，但没细看。42:00
 
-## [Mateusz Pusz “Effective replacement of dynamic polymorphism with std::variant”](https://www.youtube.com/watch?v=gKbORJtnVu8&list=PLHTh1InhhwT6V9RVdFRoCG_Pm5udDxG1c&index=100)
+## [JF Bastien “Signed integers are two's complement”](https://www.youtube.com/watch?v=JhUxIVf1qok&list=PLHTh1InhhwT6V9RVdFRoCG_Pm5udDxG1c&index=103)
 
-* 
+* 讲一些整数溢出的问题
+
+  * 由于signed 是ub，所以可能会是非预期的代码——比如UB导致的编译器优化
+  * 另外，有些情况下wrap可以解决，有些则不行；同理trap
+  * 术语说明，以i8为例
+    * wrap：127+1 = -128
+    * Saturate: 127 + 1 = 127
+    * Trap: 触发告警
+
+* signed integer overflow is UB。2's complement, or 1's complement, or signed magnitude?
+
+  * ```c++
+    // 仅考虑正数，不考虑负数
+    template<typename Int>
+    bool overflows(Int lhs, Int rhs) { return (lhs + rhs) < lhs; }
+    
+    // assemble: 只是做了左移，并没有做加法
+    // shrl $31, %esi
+    // movl %esi %eax
+    // retq
+    
+    template<typename Int> 
+    bool overflows_right_version(Int lhs, Int rhs) {
+      using U = std::make_unsingned_t<Int>;
+      return (U(lhs) + U(rhs)) < lhs;
+    }
+    template<typename Int> 
+    bool overflows_right_version2(Int lhs, Int rhs) {
+      auto max = std::numeric_limits<Int>::max();
+      return lhs > max - rhs;
+    }
+    template<typename Int> 
+    bool overflows_right_version3(Int lhs, Int rhs) {
+      Int tmp;
+      // 这里其实更干净的就是用硬件的internal flag。比如：汇编的add会设置各种flag
+      return __builtin_add_overflow(lhs, rhs, &tmp);  
+    }
+    ```
+    
+  * 告警：-fwrapv/ -ftrapv/ -UBSan
+  
+  * ![image-20240117124100645](./image-20240117124100645.png)
+  
+  * 为什么不定义溢出时的行为
+  
+    * 不解决问题，大多数bug依然存在
+    * 还得考虑不同的硬件实现，因为有3种不同的实现
+    * 阻止编译器优化——大概有平均12%的性能（0%~40%）
+  
+  * 建议
+  
+    * 一般的数字用signed
+  
+    * 需要做modular操作的数字用unsigned
+  
+  
+  
+  
+  
+## [CppCon 2018: Fedor Pikus “Design for Performance”](https://www.youtube.com/watch?v=m25p3EtBua4&list=PLHTh1InhhwT6V9RVdFRoCG_Pm5udDxG1c&index=106)
+
+  * design和performance并不总是一致的，好的design有可能有很差的performance。要在一开始design时就把performance考虑进去。
+  * 在design考虑performance时，很容易想到向量指令，这时候要记得考虑align的要求
+  * design consideration
+    * high-performance code is often low-level
+      * sometimes non-portable，
+      * sometimes abuse the language
+
+    * goode design contains such c++ code
+      * esoteric knowledg and arcane code only contained in a small part of the code
+      * higher level abstractions provided for the rest of the code
+      * take care: abstracttions and APIs must not over-constrained implementation or force overhead
+
+    * memory access speed depends on how memory is accessed
+      * Is the accelerated code fast because it computes faster or because it reads memory faster? come of both
+      * memory access speed can be a bottleneck, needs more thought
+
+  * 进度：43，在分析一个性能问题
+
+  
+
+  
+
+  
 
 
 
 # 未看，等以后用到再看
 
 * [Mateusz Pusz “Git, CMake, Conan - How to ship and reuse our C++ projects”](https://www.youtube.com/watch?v=S4QSKLXdTtA&list=PLHTh1InhhwT6V9RVdFRoCG_Pm5udDxG1c&index=74)
-* 
+* [Using Template Magic to Automatically Generate Hybrid CPU/GPU-Code -  Elmar Westphal](https://www.youtube.com/watch?v=Xd4NVV-Uy0I&list=PLHTh1InhhwT6V9RVdFRoCG_Pm5udDxG1c&index=105)
 

@@ -31,7 +31,10 @@
 
 
 
+# vscode
 
+* 卡waiting for vscode-cli-${COMMIT}.tar.gz.done and vscode-server.tar.gz exist
+  * https://stackoverflow.com/questions/77068802/how-to-install-vscode-server-offline-on-a-server-for-vscode-version-1-82-0-or-la
 
 
 ## rust
