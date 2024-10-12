@@ -47,3 +47,6 @@
   * tabnine.tabnine-vscode
   * rust-analyzer
 
+# hugging face
+
+* [国内访问huggingface](https://www.cnblogs.com/yizhisanshui/p/18214963)

@@ -955,6 +955,7 @@ assert(std::equal(reinterpret_cast<const char*>(out)
 ## [CppCon 2018: Fedor Pikus “Design for Performance”](https://www.youtube.com/watch?v=m25p3EtBua4&list=PLHTh1InhhwT6V9RVdFRoCG_Pm5udDxG1c&index=106)
 
   * design和performance并不总是一致的，好的design有可能有很差的performance。要在一开始design时就把performance考虑进去。
+  * Designs are like telling stories, 这样容易理解，便于维护
   * 在design考虑performance时，很容易想到向量指令，这时候要记得考虑align的要求
   * design consideration
     * high-performance code is often low-level
@@ -969,12 +970,29 @@ assert(std::equal(reinterpret_cast<const char*>(out)
     * memory access speed depends on how memory is accessed
       * Is the accelerated code fast because it computes faster or because it reads memory faster? come of both
       * memory access speed can be a bottleneck, needs more thought
+  * case：
+    * 以一个矩阵乘法为：
+      * google benchmark跑了不同256、512、1024size下的数据 —— 18:00
 
-  * 进度：43，在分析一个性能问题
+      * 接下来用perf record开始分析。(perf report后如何进入汇编的，这个不太清楚)
+        * ![image-20240819122729869](image-20240819122729869.png)
 
-  
+        * perfiler的定位不一定精确，可能是这条指令前或者后比较耗时
 
-  
+        * ![image-20240819125013575](image-20240819125013575.png)
+
+  * 另一个case：record遍历从list改为两个vector，再改为vector+list
+    * <img src="/Users/janeevansashtower/iCloud云盘（归档）/Desktop/myFiles/NoteBooks/C++/cppcon2018/image-20240821125513721.png" alt="image-20240821125513721" style="zoom:25%;" /><img src="/Users/janeevansashtower/iCloud云盘（归档）/Desktop/myFiles/NoteBooks/C++/cppcon2018/image-20240821125609268.png" alt="image-20240821125609268" style="zoom:25%;" /><img src="/Users/janeevansashtower/iCloud云盘（归档）/Desktop/myFiles/NoteBooks/C++/cppcon2018/image-20240822123753051.png" alt="image-20240822123753051" style="zoom:25%;" />
+  * 底层的数据结构决定了上层可以提供什么样的接口。（话说这样是不是impl反过来影响了上层的抽象？或许高性能就是会有些anti-pattern）
+    * <img src="/Users/janeevansashtower/iCloud云盘（归档）/Desktop/myFiles/NoteBooks/C++/cppcon2018/KzNuia35.png" alt="image-20240822124228849" style="zoom:25%;" />
+
+
+
+
+
+* 进度48。开始对比program1、2、3的diff
+
+* 其他：vim技巧：vimdiff [12].txt相当于vimdiff 1.txt 2.txt
 
   
 

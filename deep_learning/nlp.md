@@ -80,3 +80,15 @@
       CV使用BN是认为不同卷积核feature map（channel维）之间的差异性很重要，LN会损失channel的差异性，对于batch内的不同样本，同一卷积核提取特征的目的性是一致的，所以使用BN仅是为了进一步保证同一个卷积核在不同样本上提取特征的稳定性。
   
       而NLP使用LN是认为batch内不同样本同一位置token之间的差异性更重要，而embedding维，网络对于不同token提取的特征目的性是一致的，使用LN是为了进一步保证在不同token上提取的稳定性。
+
+
+
+# 内网公开课
+
+![image-20241011124354516](/Users/janeevansashtower/iCloud云盘（归档）/Desktop/myFiles/NoteBooks/deep_learning/nlp/bert_gpt异同.png)
+
+![image-20241011124944856](/Users/janeevansashtower/iCloud云盘（归档）/Desktop/myFiles/NoteBooks/deep_learning/nlp/bert_gpt异同1.png)
+
+* 异同
+  * bert：双向编码器
+  * gpt：单向解码器。是单向、生成式的。自回归的
